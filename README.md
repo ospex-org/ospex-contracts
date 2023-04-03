@@ -1,3 +1,3 @@
 # ospex-foundry
 
-This repository contains the smart contract code and tests for ospex.
+This repository contains the smart contracts code and tests for ospex.
