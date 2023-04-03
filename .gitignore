@@ -6,3 +6,11 @@ out/
 !/broadcast
 /broadcast/*
 /broadcast/*/31337/
+node_modules
+
+# Added
+.github
+.vscode
+archive
+lib
+script
