@@ -379,12 +379,12 @@ contract ContractTest is Test {
         // grant proper roles on speculation moneyline and total contract
         speculationMoneyline.grantRole(
             bytes32(CONTEST_CONTRACT_ADDRESS),
-            address(0x1DD17af470f2CAa13D29c02AC190a3a1EdDc4e84)
+            address(0x1d1499e622D69689cdf9004d05Ec547d650Ff211)
         );
 
         speculationTotal.grantRole(
             bytes32(CONTEST_CONTRACT_ADDRESS),
-            address(0x1DD17af470f2CAa13D29c02AC190a3a1EdDc4e84)
+            address(0x1d1499e622D69689cdf9004d05Ec547d650Ff211)
         );
 
         contestOracleResolved.grantRole(bytes32(SCORE_MANAGER), address(vince));
@@ -797,7 +797,7 @@ contract ContractTest is Test {
     }
 
     function testForfeitShouldAllowAllPartiesToGetTheirFundsBack() public {
-        vm.prank(vince);
+        vm.startPrank(vince);
         cfp.forfeitSpeculation(15);
         vm.stopPrank();
 

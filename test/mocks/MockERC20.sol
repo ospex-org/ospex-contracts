@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: Unlicense
-pragma solidity ^0.8.4;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
@@ -21,11 +21,7 @@ contract MockERC20 is ERC20 {
         _burn(account, amount);
     }
 
-    function transferInternal(
-        address from,
-        address to,
-        uint256 value
-    ) public {
+    function transferInternal(address from, address to, uint256 value) public {
         _transfer(from, to, value);
     }
 
