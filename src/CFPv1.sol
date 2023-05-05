@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.4 <0.9.0;
+pragma solidity ^0.8.13;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -418,5 +418,11 @@ contract CFPv1 is AccessControl, ReentrancyGuard {
             _speculationScorer
         );
         emit SpeculationTypeAdded(_speculationScorer, _description);
+    }
+
+    function updateDAOAddress(
+        address _DAOAddress
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        DAOAddress = _DAOAddress;
     }
 }
