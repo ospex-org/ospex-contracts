@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.18;
 
 import "forge-std/Test.sol";
 import "./mocks/MockERC20.sol";
@@ -25,9 +25,12 @@ contract ContractTest is Test {
     address alice = address(0x1);
     address bob = address(0x2);
     address carol = address(0x3);
+    // used a different address for testing Functions, may need to change the address below
     address vince = address(0xA8eb19F9B7c2b2611C1279423A0CB2aee3735320);
-    address operatorOracle =
+    // may need to deploy a contract that mocks the DON, unsure
+    address DON =
         address(0xE65D6dd7336Ef4BF77Ce07Ee39ab920f4144Bb6B);
+    // todo: add an address for the billing proxy, which is required in the constructor of the ContestOracleResolved contract
     address DAOAddress = address(0xB8720b00C8FA95aD1bA62AEd4eEcD5567cf1dFD7);
     uint256 public currentContestCounter = 0;
     uint64 public dummyVal = 40070091672358400;
@@ -37,6 +40,7 @@ contract ContractTest is Test {
         0x539b77d7cf412eeb485a45b4b9510d2a2a989f145a34f462acd2b99cc0728158;
     bytes32 public SCORE_MANAGER =
         0x1e16087bdfce8818de5eeb4bfb2468db6c3e3a609902de86451d6bcb221ca1fd;
+    // todo: add SOURCEMANAGER_ROLE and LINKMANAGER_ROLE
 
     function setUp() public {
         link = new ERC677(
@@ -53,7 +57,13 @@ contract ContractTest is Test {
             type(uint256).max
         );
 
-        contestOracleResolved = new ContestOracleResolved(address(link));
+        contestOracleResolved = new ContestOracleResolved(
+            address(DON),
+            address(link),
+            address(0x0), // this will need to be updated
+            keccak256(abi.encodePacked("test1")),
+            keccak256(abi.encodePacked("test2"))
+        );
 
         speculationSpread = new SpeculationSpread(
             address(contestOracleResolved)
@@ -92,163 +102,173 @@ contract ContractTest is Test {
         contestOracleResolved.createContest(
             "53b3147442e62830726e95a89b9b3f28",
             "286108",
-            0,
-            1,
-            2,
-            3
+            "abc",
+            "test1",
+            "0x0",
+            1234,
+            300000
         );
 
         // for ScoredManually tests, currentContestCounter + 1
         contestOracleResolved.createContest(
             "53b3147442e62830726e95a89b9b3f28",
             "286108",
-            0,
-            1,
-            2,
-            3
+            "abc",
+            "test1",
+            "0x0",
+            1234,
+            300000
         );
 
         // for Push tests, currentContestCounter + 2
         contestOracleResolved.createContest(
             "53b3147442e62830726e95a89b9b3f28",
             "286108",
-            0,
-            1,
-            2,
-            3
+            "abc",
+            "test1",
+            "0x0",
+            1234,
+            300000
         );
 
         // away side winning contest, currentContestCounter + 3
         contestOracleResolved.createContest(
             "53b3147442e62830726e95a89b9b3f28",
             "286108",
-            0,
-            1,
-            2,
-            3
+            "abc",
+            "test1",
+            "0x0",
+            1234,
+            300000
         );
 
         // home side winning contest, currentContestCounter + 4
         contestOracleResolved.createContest(
             "53b3147442e62830726e95a89b9b3f28",
             "286108",
-            0,
-            1,
-            2,
-            3
+            "abc",
+            "test1",
+            "0x0",
+            1234,
+            300000
         );
 
         // stores emits created during contest creation, ids needed to mock response
         Vm.Log[] memory contestCreationEntries = vm.getRecordedLogs();
 
         // this emulates the oracle contract returning matching data based on the requests created when the new contest was created
-        vm.startPrank(address(operatorOracle));
+        vm.startPrank(address(DON));
 
-        contestOracleResolved.fulfillCriteria(
-            bytes32(contestCreationEntries[0].topics[1]),
-            dummyVal
-        );
+        contestOracleResolved.fulfillRequest(0xe2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc4, 0x0, 0x0);
 
-        contestOracleResolved.fulfillCriteria(
-            bytes32(contestCreationEntries[1].topics[1]),
-            dummyVal
-        );
+        // *** refactor *** //
+        // contestOracleResolved.fulfillRequest(
+        //     bytes32(contestCreationEntries[0].topics[1]),
+        //     dummyVal
+        // );
 
-        contestOracleResolved.fulfillCriteria(
-            bytes32(contestCreationEntries[2].topics[1]),
-            dummyVal
-        );
+        // contestOracleResolved.fulfillRequest(
+        //     bytes32(contestCreationEntries[1].topics[1]),
+        //     dummyVal
+        // );
 
-        contestOracleResolved.fulfillCriteria(
-            bytes32(contestCreationEntries[3].topics[1]),
-            dummyVal
-        );
+        // contestOracleResolved.fulfillRequest(
+        //     bytes32(contestCreationEntries[2].topics[1]),
+        //     dummyVal
+        // );
 
-        contestOracleResolved.fulfillCriteria(
-            bytes32(contestCreationEntries[4].topics[1]),
-            dummyVal
-        );
+        // contestOracleResolved.fulfillRequest(
+        //     bytes32(contestCreationEntries[3].topics[1]),
+        //     dummyVal
+        // );
 
-        contestOracleResolved.fulfillCriteria(
-            bytes32(contestCreationEntries[5].topics[1]),
-            dummyVal
-        );
+        // contestOracleResolved.fulfillRequest(
+        //     bytes32(contestCreationEntries[4].topics[1]),
+        //     dummyVal
+        // );
 
-        contestOracleResolved.fulfillCriteria(
-            bytes32(contestCreationEntries[6].topics[1]),
-            dummyVal
-        );
+        // contestOracleResolved.fulfillRequest(
+        //     bytes32(contestCreationEntries[5].topics[1]),
+        //     dummyVal
+        // );
 
-        contestOracleResolved.fulfillCriteria(
-            bytes32(contestCreationEntries[7].topics[1]),
-            dummyVal
-        );
+        // contestOracleResolved.fulfillRequest(
+        //     bytes32(contestCreationEntries[6].topics[1]),
+        //     dummyVal
+        // );
 
-        contestOracleResolved.fulfillCriteria(
-            bytes32(contestCreationEntries[8].topics[1]),
-            dummyVal
-        );
+        // contestOracleResolved.fulfillRequest(
+        //     bytes32(contestCreationEntries[7].topics[1]),
+        //     dummyVal
+        // );
 
-        contestOracleResolved.fulfillCriteria(
-            bytes32(contestCreationEntries[9].topics[1]),
-            dummyVal
-        );
+        // contestOracleResolved.fulfillRequest(
+        //     bytes32(contestCreationEntries[8].topics[1]),
+        //     dummyVal
+        // );
+
+        // contestOracleResolved.fulfillRequest(
+        //     bytes32(contestCreationEntries[9].topics[1]),
+        //     dummyVal
+        // );
 
         vm.stopPrank();
 
         // move forward in time so that contests can be scored
         vm.warp(block.timestamp + 3600);
-        contestOracleResolved.scoreContest(currentContestCounter);
-        contestOracleResolved.scoreContest(currentContestCounter + 1);
-        contestOracleResolved.scoreContest(currentContestCounter + 2);
-        contestOracleResolved.scoreContest(currentContestCounter + 3);
-        contestOracleResolved.scoreContest(currentContestCounter + 4);
+        // *** refactor *** //
+        // contestOracleResolved.scoreContest(currentContestCounter);
+        // contestOracleResolved.scoreContest(currentContestCounter + 1);
+        // contestOracleResolved.scoreContest(currentContestCounter + 2);
+        // contestOracleResolved.scoreContest(currentContestCounter + 3);
+        // contestOracleResolved.scoreContest(currentContestCounter + 4);
 
         // stores emits created during contest scoring, ids needed to mock response
         Vm.Log[] memory contestScoredEntries = vm.getRecordedLogs();
 
-        vm.startPrank(address(operatorOracle));
+        vm.startPrank(address(DON));
 
-        contestOracleResolved.fulfillScore(
-            bytes32(contestScoredEntries[15].topics[1]),
-            16017
-        );
-        contestOracleResolved.fulfillScore(
-            bytes32(contestScoredEntries[16].topics[1]),
-            16018
-        );
-        contestOracleResolved.fulfillScore(
-            bytes32(contestScoredEntries[17].topics[1]),
-            0
-        );
-        contestOracleResolved.fulfillScore(
-            bytes32(contestScoredEntries[18].topics[1]),
-            0
-        );
-        contestOracleResolved.fulfillScore(
-            bytes32(contestScoredEntries[19].topics[1]),
-            16016
-        );
-        contestOracleResolved.fulfillScore(
-            bytes32(contestScoredEntries[20].topics[1]),
-            16016
-        );
-        contestOracleResolved.fulfillScore(
-            bytes32(contestScoredEntries[21].topics[1]),
-            24016
-        );
-        contestOracleResolved.fulfillScore(
-            bytes32(contestScoredEntries[22].topics[1]),
-            24016
-        );
-        contestOracleResolved.fulfillScore(
-            bytes32(contestScoredEntries[23].topics[1]),
-            16024
-        );
-        contestOracleResolved.fulfillScore(
-            bytes32(contestScoredEntries[24].topics[1]),
-            16024
-        );
+        // *** refactor *** //
+        // contestOracleResolved.fulfillRequest(
+        //     bytes32(contestScoredEntries[15].topics[1]),
+        //     16017
+        // );
+        // contestOracleResolved.fulfillRequest(
+        //     bytes32(contestScoredEntries[16].topics[1]),
+        //     16018
+        // );
+        // contestOracleResolved.fulfillRequest(
+        //     bytes32(contestScoredEntries[17].topics[1]),
+        //     0
+        // );
+        // contestOracleResolved.fulfillRequest(
+        //     bytes32(contestScoredEntries[18].topics[1]),
+        //     0
+        // );
+        // contestOracleResolved.fulfillRequest(
+        //     bytes32(contestScoredEntries[19].topics[1]),
+        //     16016
+        // );
+        // contestOracleResolved.fulfillRequest(
+        //     bytes32(contestScoredEntries[20].topics[1]),
+        //     16016
+        // );
+        // contestOracleResolved.fulfillRequest(
+        //     bytes32(contestScoredEntries[21].topics[1]),
+        //     24016
+        // );
+        // contestOracleResolved.fulfillRequest(
+        //     bytes32(contestScoredEntries[22].topics[1]),
+        //     24016
+        // );
+        // contestOracleResolved.fulfillRequest(
+        //     bytes32(contestScoredEntries[23].topics[1]),
+        //     16024
+        // );
+        // contestOracleResolved.fulfillRequest(
+        //     bytes32(contestScoredEntries[24].topics[1]),
+        //     16024
+        // );
 
         vm.stopPrank();
 
@@ -756,14 +776,14 @@ contract ContractTest is Test {
         cfp.scoreSpeculation(13);
 
         // confirm that status is actually RequiresConfirmation
-        (, , , ContestStatus contestStatus2a, , ) = contestOracleResolved
+        (, , , ContestStatus contestStatus2a, , ,) = contestOracleResolved
             .contests(2);
         assertEq(uint8(contestStatus2a), 6);
 
         // attempt to score with score manager
         vm.startPrank(vince);
         contestOracleResolved.scoreContestManually(2, 0, 0);
-        (, , , ContestStatus contestStatus2b, , ) = contestOracleResolved
+        (, , , ContestStatus contestStatus2b, , ,) = contestOracleResolved
             .contests(2);
         assertEq(uint8(contestStatus2b), 5);
         vm.stopPrank();

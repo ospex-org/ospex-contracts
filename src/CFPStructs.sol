@@ -1,20 +1,19 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.18;
 
 struct Contest {
     uint32 awayScore; // final awayScore
     uint32 homeScore; // final homeScore
     address contestCreator;
-    uint8[2] scoringOracles; // oracle mappings to be used for scoring, must be defined during contest creation
     ContestStatus contestStatus; // is contest final (and is score available to speculations)
     string rundownId; // from rundown api
     string sportspageId; // from sportspage api
+    string jsonoddsId; // from the jsonodds api
 }
 
 enum ContestStatus {
     Unverified,
     Verified,
-    Pending,
     Scored,
     NotMatching,
     ScoredManually,
@@ -61,10 +60,4 @@ struct Position {
     uint256 upperAmount;
     uint256 lowerAmount;
     bool claimed;
-}
-
-struct Oracle {
-    address oracleAddress;
-    bytes32 jobId;
-    uint256 fee;
 }

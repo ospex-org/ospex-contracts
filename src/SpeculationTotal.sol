@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity ^0.8.18;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
+import "../lib/openzeppelin-contracts/contracts/access/AccessControl.sol";
 import "./CFPStructs.sol";
 
 interface IContestScorer {
-    function getContest(uint256 _id) external view returns (Contest memory);
+    function getContest(uint256 _contestId) external view returns (Contest memory);
 }
 
 contract SpeculationTotal is AccessControl {
@@ -22,8 +22,8 @@ contract SpeculationTotal is AccessControl {
     address public ContestScorer;
 
     constructor(address _contestScorer) {
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
         ContestScorer = _contestScorer;
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     modifier nonZeroScoreContestResult(
@@ -40,25 +40,25 @@ contract SpeculationTotal is AccessControl {
     }
 
     function determineWinSide(
-        uint256 _id,
+        uint256 _contestId,
         int32 _theNumber
     )
         external
         view
         onlyRole(CONTEST_CONTRACT_ADDRESS)
         nonZeroScoreContestResult(
-            IContestScorer(ContestScorer).getContest(_id).awayScore,
-            IContestScorer(ContestScorer).getContest(_id).homeScore,
-            IContestScorer(ContestScorer).getContest(_id).contestStatus
+            IContestScorer(ContestScorer).getContest(_contestId).awayScore,
+            IContestScorer(ContestScorer).getContest(_contestId).homeScore,
+            IContestScorer(ContestScorer).getContest(_contestId).contestStatus
         )
         returns (WinSide)
     {
-        Contest memory contest = IContestScorer(ContestScorer).getContest(_id);
+        Contest memory contest = IContestScorer(ContestScorer).getContest(_contestId);
         if (
             !(contest.contestStatus == ContestStatus.Scored ||
                 contest.contestStatus == ContestStatus.ScoredManually)
         ) {
-            revert ScoreNotFinalized(_id);
+            revert ScoreNotFinalized(_contestId);
         }
         return scoreTotal(contest.awayScore, contest.homeScore, _theNumber);
     }
