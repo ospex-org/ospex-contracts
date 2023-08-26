@@ -179,16 +179,9 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
         _;
     }
 
-    // Ensures that the subscription fee needed to call the DON is paid for by the caller
-    // Applicable to creating contests and scoring them
+    // Ensures that the subscription fee needed to call the DON is paid for
+    // LINK will need to be transferred to the contract and should be done so when creating or scoring a contest
     modifier paySubscriptionFee(uint64 subscriptionId) {
-        // Pay the contract a sufficient amount of LINK, this is required to force the sender to pay the subscription fee.
-        bool subscriptionPaidByCaller = IERC1363(linkAddress).transferFrom(
-            msg.sender, 
-            address(this), 
-            LINK_DIVISIBILITY / linkDenominator);
-        if (!subscriptionPaidByCaller) revert LinkAmountTooLowFromSender(LINK_DIVISIBILITY / linkDenominator);
-
         // Pay the subscription fee with LINK tokens. If the payment fails, revert the transaction with a meaningful error message.
         bool subscriptionPaid = IERC1363(linkAddress).transferAndCall(
             linkBillingProxyAddress,
