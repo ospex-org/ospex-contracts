@@ -23,6 +23,7 @@ contract SpeculationMoneyline is AccessControl {
 
     constructor(address _contestScorer) {
         ContestScorer = _contestScorer;
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     modifier nonZeroScoreContestResult(

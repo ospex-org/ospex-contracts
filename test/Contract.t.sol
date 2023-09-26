@@ -3,44 +3,43 @@ pragma solidity ^0.8.18;
 
 import "forge-std/Test.sol";
 import "./mocks/MockERC20.sol";
-import "../src/ContestOracleResolved.sol";
+import "./ContestOracleResolved.t.sol";
 import "../src/SpeculationSpread.sol";
 import "../src/CFPStructs.sol";
 import {SpeculationTotal} from "../src/SpeculationTotal.sol";
 import {SpeculationMoneyline} from "../src/SpeculationMoneyline.sol";
 import {CFPv1} from "../src/CFPv1.sol";
+import "./mocks/MockOracle.sol";
 import "./mocks/MockERC677.sol";
 
 contract ContractTest is Test {
     using stdStorage for StdStorage;
 
-    ContestOracleResolved contestOracleResolved;
+    ContestOracleResolvedHarness contestOracleResolved;
     CFPv1 cfp;
     MockERC20 erc20;
     SpeculationSpread speculationSpread;
     SpeculationTotal speculationTotal;
     SpeculationMoneyline speculationMoneyline;
     ERC677 link;
+    MockOracle mockOracle;
 
     address alice = address(0x1);
     address bob = address(0x2);
     address carol = address(0x3);
-    // used a different address for testing Functions, may need to change the address below
     address vince = address(0xA8eb19F9B7c2b2611C1279423A0CB2aee3735320);
-    // may need to deploy a contract that mocks the DON, unsure
-    address DON =
-        address(0xE65D6dd7336Ef4BF77Ce07Ee39ab920f4144Bb6B);
     // todo: add an address for the billing proxy, which is required in the constructor of the ContestOracleResolved contract
     address DAOAddress = address(0xB8720b00C8FA95aD1bA62AEd4eEcD5567cf1dFD7);
     uint256 public currentContestCounter = 0;
-    uint64 public dummyVal = 40070091672358400;
+    // this dummyVal is the equivalent of the value 40070091672358400
+    bytes public dummyVal = abi.encodePacked(bytes32(0x000000000000000000000000000000000000000000000000008e5b893c3f8e00));
     bytes32 public RELAYER_ROLE =
         0xe2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc4;
     bytes32 public CONTEST_CONTRACT_ADDRESS =
         0x539b77d7cf412eeb485a45b4b9510d2a2a989f145a34f462acd2b99cc0728158;
     bytes32 public SCORE_MANAGER =
         0x1e16087bdfce8818de5eeb4bfb2468db6c3e3a609902de86451d6bcb221ca1fd;
-    // todo: add SOURCEMANAGER_ROLE and LINKMANAGER_ROLE
+    // todo: add SOURCEMANAGER_ROLE and LINKMANAGER_ROLE and test
 
     function setUp() public {
         link = new ERC677(
@@ -57,10 +56,12 @@ contract ContractTest is Test {
             type(uint256).max
         );
 
-        contestOracleResolved = new ContestOracleResolved(
-            address(DON),
+        mockOracle = new MockOracle();
+
+        contestOracleResolved = new ContestOracleResolvedHarness(
+            address(mockOracle),
             address(link),
-            address(0x0), // this will need to be updated
+            address(0x5),
             keccak256(abi.encodePacked("test1")),
             keccak256(abi.encodePacked("test2"))
         );
@@ -84,21 +85,22 @@ contract ContractTest is Test {
         );
 
         // transfer enough tokens to perform tests
-        erc20.approve(address(this), 20 * 10 ** 18);
-        erc20.transferFrom(address(this), address(alice), 20 * 10 ** 18);
-        erc20.approve(address(this), 20 * 10 ** 18);
-        erc20.transferFrom(address(this), address(bob), 20 * 10 ** 18);
-        erc20.approve(address(this), 20 * 10 ** 18);
-        erc20.transferFrom(address(this), address(carol), 20 * 10 ** 18);
-        erc20.approve(address(this), 20 * 10 ** 18);
-        erc20.transferFrom(address(this), address(cfp), 20 * 10 ** 18);
+        erc20.approve(address(this), 20 * 10 ** 6);
+        erc20.transferFrom(address(this), address(alice), 20 * 10 ** 6);
+        erc20.approve(address(this), 20 * 10 ** 6);
+        erc20.transferFrom(address(this), address(bob), 20 * 10 ** 6);
+        erc20.approve(address(this), 20 * 10 ** 6);
+        erc20.transferFrom(address(this), address(carol), 20 * 10 ** 6);
+        erc20.approve(address(this), 20 * 10 ** 6);
+        erc20.transferFrom(address(this), address(cfp), 20 * 10 ** 6);
 
         currentContestCounter = contestOracleResolved.contestId();
 
         vm.recordLogs();
 
         // create initial contest to be used with some tests (NotMatching, ScoredManually, Push)
-        // for NotMatching test, currentContestCounter
+        // for NotMatching test, currentContestCounter + 1
+        // note: gasLimit (the last parameter below) is sent back as the request ID, therefore it should be/is unique
         contestOracleResolved.createContest(
             "53b3147442e62830726e95a89b9b3f28",
             "286108",
@@ -108,8 +110,8 @@ contract ContractTest is Test {
             1234,
             300000
         );
-
-        // for ScoredManually tests, currentContestCounter + 1
+        
+        // for ScoredManually tests, currentContestCounter + 2
         contestOracleResolved.createContest(
             "53b3147442e62830726e95a89b9b3f28",
             "286108",
@@ -117,10 +119,10 @@ contract ContractTest is Test {
             "test1",
             "0x0",
             1234,
-            300000
+            299999
         );
 
-        // for Push tests, currentContestCounter + 2
+        // for Push tests, currentContestCounter + 3
         contestOracleResolved.createContest(
             "53b3147442e62830726e95a89b9b3f28",
             "286108",
@@ -128,10 +130,10 @@ contract ContractTest is Test {
             "test1",
             "0x0",
             1234,
-            300000
+            299998
         );
 
-        // away side winning contest, currentContestCounter + 3
+        // away side winning contest, currentContestCounter + 4
         contestOracleResolved.createContest(
             "53b3147442e62830726e95a89b9b3f28",
             "286108",
@@ -139,10 +141,10 @@ contract ContractTest is Test {
             "test1",
             "0x0",
             1234,
-            300000
+            299997
         );
 
-        // home side winning contest, currentContestCounter + 4
+        // home side winning contest, currentContestCounter + 5
         contestOracleResolved.createContest(
             "53b3147442e62830726e95a89b9b3f28",
             "286108",
@@ -150,125 +152,85 @@ contract ContractTest is Test {
             "test1",
             "0x0",
             1234,
-            300000
+            299996
         );
 
         // stores emits created during contest creation, ids needed to mock response
         Vm.Log[] memory contestCreationEntries = vm.getRecordedLogs();
 
-        // this emulates the oracle contract returning matching data based on the requests created when the new contest was created
-        vm.startPrank(address(DON));
+        // this emulates the decentralized oracle network returning matching data based on the requests created when the new contest was created
+        vm.startPrank(address(mockOracle));
+        
+        contestOracleResolved.exposed_fulfillRequest(
+            bytes32(contestCreationEntries[0].topics[1]),
+            dummyVal
+        );
 
-        contestOracleResolved.fulfillRequest(0xe2b7fb3b832174769106daebcfd6d1970523240dda11281102db9363b83b0dc4, 0x0, 0x0);
+        contestOracleResolved.exposed_fulfillRequest(
+            bytes32(contestCreationEntries[1].topics[1]),
+            dummyVal
+        );
 
-        // *** refactor *** //
-        // contestOracleResolved.fulfillRequest(
-        //     bytes32(contestCreationEntries[0].topics[1]),
-        //     dummyVal
-        // );
+        contestOracleResolved.exposed_fulfillRequest(
+            bytes32(contestCreationEntries[2].topics[1]),
+            dummyVal
+        );
 
-        // contestOracleResolved.fulfillRequest(
-        //     bytes32(contestCreationEntries[1].topics[1]),
-        //     dummyVal
-        // );
+        contestOracleResolved.exposed_fulfillRequest(
+            bytes32(contestCreationEntries[3].topics[1]),
+            dummyVal
+        );
 
-        // contestOracleResolved.fulfillRequest(
-        //     bytes32(contestCreationEntries[2].topics[1]),
-        //     dummyVal
-        // );
-
-        // contestOracleResolved.fulfillRequest(
-        //     bytes32(contestCreationEntries[3].topics[1]),
-        //     dummyVal
-        // );
-
-        // contestOracleResolved.fulfillRequest(
-        //     bytes32(contestCreationEntries[4].topics[1]),
-        //     dummyVal
-        // );
-
-        // contestOracleResolved.fulfillRequest(
-        //     bytes32(contestCreationEntries[5].topics[1]),
-        //     dummyVal
-        // );
-
-        // contestOracleResolved.fulfillRequest(
-        //     bytes32(contestCreationEntries[6].topics[1]),
-        //     dummyVal
-        // );
-
-        // contestOracleResolved.fulfillRequest(
-        //     bytes32(contestCreationEntries[7].topics[1]),
-        //     dummyVal
-        // );
-
-        // contestOracleResolved.fulfillRequest(
-        //     bytes32(contestCreationEntries[8].topics[1]),
-        //     dummyVal
-        // );
-
-        // contestOracleResolved.fulfillRequest(
-        //     bytes32(contestCreationEntries[9].topics[1]),
-        //     dummyVal
-        // );
+        contestOracleResolved.exposed_fulfillRequest(
+            bytes32(contestCreationEntries[4].topics[1]),
+            dummyVal
+        );
 
         vm.stopPrank();
 
         // move forward in time so that contests can be scored
         vm.warp(block.timestamp + 3600);
-        // *** refactor *** //
-        // contestOracleResolved.scoreContest(currentContestCounter);
-        // contestOracleResolved.scoreContest(currentContestCounter + 1);
-        // contestOracleResolved.scoreContest(currentContestCounter + 2);
-        // contestOracleResolved.scoreContest(currentContestCounter + 3);
-        // contestOracleResolved.scoreContest(currentContestCounter + 4);
+
+        contestOracleResolved.scoreContest(currentContestCounter + 1, "test2", "0x0", 1234, 300000);
+        contestOracleResolved.scoreContest(currentContestCounter + 2, "test2", "0x0", 1234, 299999);
+        contestOracleResolved.scoreContest(currentContestCounter + 3, "test2", "0x0", 1234, 299998);
+        contestOracleResolved.scoreContest(currentContestCounter + 4, "test2", "0x0", 1234, 299997);
+        contestOracleResolved.scoreContest(currentContestCounter + 5, "test2", "0x0", 1234, 299996);
 
         // stores emits created during contest scoring, ids needed to mock response
         Vm.Log[] memory contestScoredEntries = vm.getRecordedLogs();
 
-        vm.startPrank(address(DON));
+        vm.startPrank(address(mockOracle));
 
-        // *** refactor *** //
-        // contestOracleResolved.fulfillRequest(
-        //     bytes32(contestScoredEntries[15].topics[1]),
-        //     16017
-        // );
-        // contestOracleResolved.fulfillRequest(
-        //     bytes32(contestScoredEntries[16].topics[1]),
-        //     16018
-        // );
-        // contestOracleResolved.fulfillRequest(
-        //     bytes32(contestScoredEntries[17].topics[1]),
-        //     0
-        // );
-        // contestOracleResolved.fulfillRequest(
-        //     bytes32(contestScoredEntries[18].topics[1]),
-        //     0
-        // );
-        // contestOracleResolved.fulfillRequest(
-        //     bytes32(contestScoredEntries[19].topics[1]),
-        //     16016
-        // );
-        // contestOracleResolved.fulfillRequest(
-        //     bytes32(contestScoredEntries[20].topics[1]),
-        //     16016
-        // );
-        // contestOracleResolved.fulfillRequest(
-        //     bytes32(contestScoredEntries[21].topics[1]),
-        //     24016
-        // );
-        // contestOracleResolved.fulfillRequest(
-        //     bytes32(contestScoredEntries[22].topics[1]),
-        //     24016
-        // );
-        // contestOracleResolved.fulfillRequest(
-        //     bytes32(contestScoredEntries[23].topics[1]),
-        //     16024
-        // );
-        // contestOracleResolved.fulfillRequest(
-        //     bytes32(contestScoredEntries[24].topics[1]),
-        //     16024
-        // );
+        contestOracleResolved.exposed_fulfillRequest(
+            bytes32(contestScoredEntries[0].topics[1]),
+            // 16017
+            abi.encodePacked(bytes32(0x0000000000000000000000000000000000000000000000000000000000003e91))
+        );
+
+        contestOracleResolved.exposed_fulfillRequest(
+            bytes32(contestScoredEntries[2].topics[1]),
+            // 0
+            abi.encodePacked(bytes32(0x0000000000000000000000000000000000000000000000000000000000000000))
+        );
+
+        contestOracleResolved.exposed_fulfillRequest(
+            bytes32(contestScoredEntries[4].topics[1]),
+            // 16016
+            abi.encodePacked(bytes32(0x0000000000000000000000000000000000000000000000000000000000003e90))
+        );
+
+        contestOracleResolved.exposed_fulfillRequest(
+            bytes32(contestScoredEntries[6].topics[1]),
+            // 24016
+            abi.encodePacked(bytes32(0x0000000000000000000000000000000000000000000000000000000000005dd0))
+        );
+
+        contestOracleResolved.exposed_fulfillRequest(
+            bytes32(contestScoredEntries[8].topics[1]),
+            // 16024
+            abi.encodePacked(bytes32(0x0000000000000000000000000000000000000000000000000000000000003e98))
+        );
 
         vm.stopPrank();
 
@@ -276,7 +238,7 @@ contract ContractTest is Test {
 
         // speculation(1), status is open
         cfp.createSpeculation(
-            currentContestCounter,
+            currentContestCounter + 1,
             uint32(block.timestamp + 365 days),
             address(speculationMoneyline),
             0
@@ -284,7 +246,7 @@ contract ContractTest is Test {
 
         // speculation(2), status is open but timestamp is current time (or in the past)
         cfp.createSpeculation(
-            currentContestCounter,
+            currentContestCounter + 1,
             uint32(block.timestamp),
             address(speculationMoneyline),
             0
@@ -292,7 +254,7 @@ contract ContractTest is Test {
 
         // speculation(3), status is locked despite the locktime being in the future (this is possible if the relayer locks)
         cfp.createSpeculation(
-            currentContestCounter,
+            currentContestCounter + 1,
             uint32(block.timestamp + 365 days),
             address(speculationMoneyline),
             0
@@ -300,7 +262,7 @@ contract ContractTest is Test {
 
         // speculation(4) (locked, not closed)
         cfp.createSpeculation(
-            currentContestCounter,
+            currentContestCounter + 1,
             uint32(block.timestamp + 10 minutes),
             address(speculationMoneyline),
             0
@@ -308,7 +270,7 @@ contract ContractTest is Test {
 
         // speculation(5)
         cfp.createSpeculation(
-            currentContestCounter,
+            currentContestCounter + 1,
             uint32(block.timestamp + 1 minutes),
             address(speculationMoneyline),
             0
@@ -316,7 +278,7 @@ contract ContractTest is Test {
 
         // speculation(6)
         cfp.createSpeculation(
-            currentContestCounter,
+            currentContestCounter + 1,
             uint32(block.timestamp + 1 minutes),
             address(speculationMoneyline),
             0
@@ -324,7 +286,7 @@ contract ContractTest is Test {
 
         // speculation(7) away side winner
         cfp.createSpeculation(
-            currentContestCounter + 3,
+            currentContestCounter + 4,
             uint32(block.timestamp + 1 minutes),
             address(speculationMoneyline),
             0
@@ -332,7 +294,7 @@ contract ContractTest is Test {
 
         // speculation(8) win side will be away
         cfp.createSpeculation(
-            currentContestCounter + 3,
+            currentContestCounter + 4,
             uint32(block.timestamp + 1 minutes),
             address(speculationMoneyline),
             0
@@ -340,7 +302,7 @@ contract ContractTest is Test {
 
         // speculation(9) win side will be home
         cfp.createSpeculation(
-            currentContestCounter + 4,
+            currentContestCounter + 5,
             uint32(block.timestamp + 1 minutes),
             address(speculationMoneyline),
             0
@@ -348,7 +310,7 @@ contract ContractTest is Test {
 
         // speculation(10) win side will be over
         cfp.createSpeculation(
-            currentContestCounter + 3,
+            currentContestCounter + 4,
             uint32(block.timestamp + 1 minutes),
             address(speculationTotal),
             1
@@ -356,21 +318,14 @@ contract ContractTest is Test {
 
         // speculation(11) win side will be under
         cfp.createSpeculation(
-            currentContestCounter + 4,
+            currentContestCounter + 5,
             uint32(block.timestamp + 1 minutes),
             address(speculationTotal),
             99
         );
 
         // speculation(12), based on non-matching score
-        cfp.createSpeculation(
-            currentContestCounter,
-            uint32(block.timestamp + 1 minutes),
-            address(speculationMoneyline),
-            0
-        );
-
-        // speculation(13), based on 0-0 score
+        // note: there are no longer "non-matching scores" as the DON responds with either a score or an error
         cfp.createSpeculation(
             currentContestCounter + 1,
             uint32(block.timestamp + 1 minutes),
@@ -378,9 +333,17 @@ contract ContractTest is Test {
             0
         );
 
-        // speculation(14), based on push
+        // speculation(13), based on 0-0 score
         cfp.createSpeculation(
             currentContestCounter + 2,
+            uint32(block.timestamp + 1 minutes),
+            address(speculationMoneyline),
+            0
+        );
+
+        // speculation(14), based on push
+        cfp.createSpeculation(
+            currentContestCounter + 3,
             uint32(block.timestamp + 1 minutes),
             address(speculationMoneyline),
             0
@@ -388,7 +351,7 @@ contract ContractTest is Test {
 
         // speculation(15), based on forfeit
         cfp.createSpeculation(
-            currentContestCounter + 2,
+            currentContestCounter + 3,
             uint32(block.timestamp + 1 minutes),
             address(speculationMoneyline),
             0
@@ -396,15 +359,14 @@ contract ContractTest is Test {
 
         cfp.grantRole(bytes32(RELAYER_ROLE), address(this));
 
-        // grant proper roles on speculation moneyline and total contract
         speculationMoneyline.grantRole(
             bytes32(CONTEST_CONTRACT_ADDRESS),
-            address(0x1d1499e622D69689cdf9004d05Ec547d650Ff211)
+            address(cfp)
         );
 
         speculationTotal.grantRole(
             bytes32(CONTEST_CONTRACT_ADDRESS),
-            address(0x1d1499e622D69689cdf9004d05Ec547d650Ff211)
+            address(cfp)
         );
 
         contestOracleResolved.grantRole(bytes32(SCORE_MANAGER), address(vince));
@@ -412,11 +374,11 @@ contract ContractTest is Test {
 
         // carol taking both sides of speculations so these don't close when calling lock due to there being no action (on either side)
         vm.startPrank(carol);
-        erc20.approve(address(cfp), 8 * 10 ** 18);
-        cfp.createPosition(3, 1 * 10 ** 18, 1 * 10 ** 18, PositionType.Upper);
-        cfp.createPosition(3, 1 * 10 ** 18, 1 * 10 ** 18, PositionType.Lower);
-        cfp.createPosition(4, 1 * 10 ** 18, 1 * 10 ** 18, PositionType.Upper);
-        cfp.createPosition(4, 1 * 10 ** 18, 1 * 10 ** 18, PositionType.Lower);
+        erc20.approve(address(cfp), 8 * 10 ** 6);
+        cfp.createPosition(3, 1 * 10 ** 6, 1 * 10 ** 6, PositionType.Upper);
+        cfp.createPosition(3, 1 * 10 ** 6, 1 * 10 ** 6, PositionType.Lower);
+        cfp.createPosition(4, 1 * 10 ** 6, 1 * 10 ** 6, PositionType.Upper);
+        cfp.createPosition(4, 1 * 10 ** 6, 1 * 10 ** 6, PositionType.Lower);
         vm.stopPrank();
 
         cfp.lockSpeculation(3);
@@ -424,32 +386,32 @@ contract ContractTest is Test {
 
         // alice positions for tests
         vm.startPrank(alice);
-        erc20.approve(address(cfp), 19 * 10 ** 18);
-        cfp.createPosition(5, 1 * 10 ** 18, 0, PositionType.Upper);
-        cfp.createPosition(6, 1 * 10 ** 18, 0, PositionType.Upper);
-        cfp.createPosition(7, 1 * 10 ** 18, 0, PositionType.Upper);
-        cfp.createPosition(8, 2 * 10 ** 18, 0, PositionType.Upper);
-        cfp.createPosition(9, 2 * 10 ** 18, 0, PositionType.Upper);
-        cfp.createPosition(10, 2 * 10 ** 18, 0, PositionType.Upper);
-        cfp.createPosition(11, 2 * 10 ** 18, 0, PositionType.Upper);
-        cfp.createPosition(12, 2 * 10 ** 18, 0, PositionType.Upper);
-        cfp.createPosition(13, 2 * 10 ** 18, 0, PositionType.Upper);
-        cfp.createPosition(14, 2 * 10 ** 18, 0, PositionType.Upper);
-        cfp.createPosition(15, 2 * 10 ** 18, 0, PositionType.Upper);
+        erc20.approve(address(cfp), 19 * 10 ** 6);
+        cfp.createPosition(5, 1 * 10 ** 6, 0, PositionType.Upper);
+        cfp.createPosition(6, 1 * 10 ** 6, 0, PositionType.Upper);
+        cfp.createPosition(7, 1 * 10 ** 6, 0, PositionType.Upper);
+        cfp.createPosition(8, 2 * 10 ** 6, 0, PositionType.Upper);
+        cfp.createPosition(9, 2 * 10 ** 6, 0, PositionType.Upper);
+        cfp.createPosition(10, 2 * 10 ** 6, 0, PositionType.Upper);
+        cfp.createPosition(11, 2 * 10 ** 6, 0, PositionType.Upper);
+        cfp.createPosition(12, 2 * 10 ** 6, 0, PositionType.Upper);
+        cfp.createPosition(13, 2 * 10 ** 6, 0, PositionType.Upper);
+        cfp.createPosition(14, 2 * 10 ** 6, 0, PositionType.Upper);
+        cfp.createPosition(15, 2 * 10 ** 6, 0, PositionType.Upper);
         vm.stopPrank();
 
         // bob positions for tests
         vm.startPrank(bob);
-        erc20.approve(address(cfp), 9 * 10 ** 18);
-        cfp.createPosition(7, 1 * 10 ** 18, 0, PositionType.Lower);
-        cfp.createPosition(8, 1 * 10 ** 18, 0, PositionType.Lower);
-        cfp.createPosition(9, 1 * 10 ** 18, 0, PositionType.Lower);
-        cfp.createPosition(10, 1 * 10 ** 18, 0, PositionType.Lower);
-        cfp.createPosition(11, 1 * 10 ** 18, 0, PositionType.Lower);
-        cfp.createPosition(12, 1 * 10 ** 18, 0, PositionType.Lower);
-        cfp.createPosition(13, 1 * 10 ** 18, 0, PositionType.Lower);
-        cfp.createPosition(14, 1 * 10 ** 18, 0, PositionType.Lower);
-        cfp.createPosition(15, 1 * 10 ** 18, 0, PositionType.Lower);
+        erc20.approve(address(cfp), 9 * 10 ** 6);
+        cfp.createPosition(7, 1 * 10 ** 6, 0, PositionType.Lower);
+        cfp.createPosition(8, 1 * 10 ** 6, 0, PositionType.Lower);
+        cfp.createPosition(9, 1 * 10 ** 6, 0, PositionType.Lower);
+        cfp.createPosition(10, 1 * 10 ** 6, 0, PositionType.Lower);
+        cfp.createPosition(11, 1 * 10 ** 6, 0, PositionType.Lower);
+        cfp.createPosition(12, 1 * 10 ** 6, 0, PositionType.Lower);
+        cfp.createPosition(13, 1 * 10 ** 6, 0, PositionType.Lower);
+        cfp.createPosition(14, 1 * 10 ** 6, 0, PositionType.Lower);
+        cfp.createPosition(15, 1 * 10 ** 6, 0, PositionType.Lower);
         vm.stopPrank();
 
         cfp.lockSpeculation(6);
@@ -462,12 +424,18 @@ contract ContractTest is Test {
         cfp.lockSpeculation(13);
         cfp.lockSpeculation(14);
 
-        vm.warp(block.timestamp + 3600); // move forward in time 6 minutes, has to be long enough to exceed timeout
+        vm.warp(block.timestamp + 3600); // move forward in time 6 minutes, must be long enough to exceed timeout
         cfp.scoreSpeculation(7);
         cfp.scoreSpeculation(8);
+
+        // zero zero score must be verified
         cfp.scoreSpeculation(9);
+
         cfp.scoreSpeculation(10);
+
+        // zero zero score must be verified
         cfp.scoreSpeculation(11);
+        
         cfp.scoreSpeculation(14);
         vm.warp(block.timestamp);
     }
@@ -475,17 +443,17 @@ contract ContractTest is Test {
     function testSpeculationShouldCorrectlyReflectBalances() public {
         // create positions on speculation 1, ensure that the speculation reflects accurate balances
         vm.startPrank(alice);
-        erc20.approve(address(cfp), 1 * 10 ** 18);
-        cfp.createPosition(1, 1 * 10 ** 18, 0, PositionType.Upper);
+        erc20.approve(address(cfp), 1 * 10 ** 6);
+        cfp.createPosition(1, 1 * 10 ** 6, 0, PositionType.Upper);
         vm.stopPrank();
         vm.startPrank(bob);
-        erc20.approve(address(cfp), 2 * 10 ** 18);
-        cfp.createPosition(1, 2 * 10 ** 18, 0, PositionType.Lower);
+        erc20.approve(address(cfp), 2 * 10 ** 6);
+        cfp.createPosition(1, 2 * 10 ** 6, 0, PositionType.Lower);
         vm.stopPrank();
 
         (, uint256 upper1, uint256 lower1, , , , , , ) = cfp.speculations(1);
-        assertEq(upper1, 1 * 10 ** 18);
-        assertEq(lower1, 2 * 10 ** 18);
+        assertEq(upper1, 1 * 10 ** 6);
+        assertEq(lower1, 2 * 10 ** 6);
     }
 
     function testShouldRevertWhenClaimingBeforeSpeculationIsClosed() public {
@@ -514,14 +482,14 @@ contract ContractTest is Test {
             abi.encodeWithSignature("SpeculationHasStarted(uint256)", 2)
         );
         vm.startPrank(alice);
-        cfp.createPosition(2, 1 * 10 ** 18, 0, PositionType.Upper);
+        cfp.createPosition(2, 1 * 10 ** 6, 0, PositionType.Upper);
         vm.stopPrank();
 
         vm.expectRevert(
             abi.encodeWithSignature("SpeculationHasStarted(uint256)", 3)
         );
         vm.startPrank(alice);
-        cfp.createPosition(3, 1 * 10 ** 18, 0, PositionType.Upper);
+        cfp.createPosition(3, 1 * 10 ** 6, 0, PositionType.Upper);
         vm.stopPrank();
     }
 
@@ -536,13 +504,13 @@ contract ContractTest is Test {
         cfp.claim(5, 0);
         vm.stopPrank();
 
-        // this works: speculation 6 is closed (has been locked/closed, all positions on same side)
+        // speculation 6 is closed (has been locked/closed, all positions on same side)
         uint256 aliceBalance = erc20.balanceOf(alice);
         (, uint256 upper6, , , , , , , ) = cfp.speculations(6);
         vm.startPrank(alice);
         cfp.claim(6, 0);
         vm.stopPrank();
-        assertEq(aliceBalance + 1 * 10 ** 18, aliceBalance + upper6);
+        assertEq(aliceBalance + 1 * 10 ** 6, aliceBalance + upper6);
     }
 
     function testClaimingShouldBePermittedByCorrectUser() public {
@@ -551,7 +519,7 @@ contract ContractTest is Test {
         vm.startPrank(alice);
         cfp.claim(7, 0);
         vm.stopPrank();
-        assertEq(aliceBalance + 2 * 10 ** 18, aliceBalance + upper7 + lower7);
+        assertEq(aliceBalance + 2 * 10 ** 6, aliceBalance + upper7 + lower7);
 
         // bob lost
         vm.expectRevert(
@@ -568,7 +536,7 @@ contract ContractTest is Test {
         vm.startPrank(alice);
         cfp.claim(7, 0);
         vm.stopPrank();
-        assertEq(aliceBalance + 2 * 10 ** 18, aliceBalance + upper7 + lower7);
+        assertEq(aliceBalance + 2 * 10 ** 6, aliceBalance + upper7 + lower7);
 
         vm.expectRevert(
             abi.encodeWithSignature("WinningsAlreadyClaimed(uint256)", 7)
@@ -676,17 +644,19 @@ contract ContractTest is Test {
         cfp.claim(11, 0);
         vm.stopPrank();
         assertEq(
-            aliceBalance + 6 * 10 ** 18,
+            aliceBalance + 6 * 10 ** 6,
             aliceBalance + upper8 + lower8 + upper10 + lower10
         );
         assertEq(
-            bobBalance + 6 * 10 ** 18,
+            bobBalance + 6 * 10 ** 6,
             bobBalance + upper9 + lower9 + upper11 + lower11
         );
     }
 
+    // refactor
+    /*
     function testNonMatchingContestShouldAllowForManualScoringFromScoreManagerRole()
-        public
+        public 
     {
         // if a contest has non-matching scores, contest status will be NotMatching
         // in this case, score manager will be able to score; if the score is not updated by score manager,
@@ -701,7 +671,7 @@ contract ContractTest is Test {
         cfp.scoreSpeculation(12);
         vm.startPrank(vince); // vince should have the role so that this is possible
         contestOracleResolved.scoreContestManually(
-            currentContestCounter,
+            currentContestCounter + 1,
             17,
             16
         );
@@ -721,7 +691,9 @@ contract ContractTest is Test {
         assertEq(2, uint8(speculationStatus12));
         assertEq(1, uint8(winSide12));
     }
+    */
 
+    /*
     function testNonMatchingContestShouldBeVoidedIfNotScored() public {
         // move forward in time 6 minutes, has to be long enough to exceed timeout
         // should revert with error as scores from oracle are non-matching
@@ -762,9 +734,10 @@ contract ContractTest is Test {
         vm.startPrank(bob);
         cfp.claim(12, 0);
         vm.stopPrank();
-        assertEq(aliceBalance + 2 * 10 ** 18, aliceBalance + upper12);
-        assertEq(bobBalance + 1 * 10 ** 18, bobBalance + lower12);
+        assertEq(aliceBalance + 2 * 10 ** 6, aliceBalance + upper12);
+        assertEq(bobBalance + 1 * 10 ** 6, bobBalance + lower12);
     }
+    */
 
     function testZeroZeroContestShouldBehaveAccordingly() public {
         // zero-zero score must be checked/confirmed by score manager
@@ -778,14 +751,14 @@ contract ContractTest is Test {
         // confirm that status is actually RequiresConfirmation
         (, , , ContestStatus contestStatus2a, , ,) = contestOracleResolved
             .contests(2);
-        assertEq(uint8(contestStatus2a), 6);
+        assertEq(uint8(contestStatus2a), 5);
 
         // attempt to score with score manager
         vm.startPrank(vince);
         contestOracleResolved.scoreContestManually(2, 0, 0);
         (, , , ContestStatus contestStatus2b, , ,) = contestOracleResolved
             .contests(2);
-        assertEq(uint8(contestStatus2b), 5);
+        assertEq(uint8(contestStatus2b), 4);
         vm.stopPrank();
 
         cfp.scoreSpeculation(13);
@@ -798,8 +771,8 @@ contract ContractTest is Test {
         vm.startPrank(bob);
         cfp.claim(13, 0);
         vm.stopPrank();
-        assertEq(aliceBalance + 2 * 10 ** 18, aliceBalance + upper13);
-        assertEq(bobBalance + 1 * 10 ** 18, bobBalance + lower13);
+        assertEq(aliceBalance + 2 * 10 ** 6, aliceBalance + upper13);
+        assertEq(bobBalance + 1 * 10 ** 6, bobBalance + lower13);
     }
 
     function testPushShouldResultInMoneylinePayoutsBeingReturned() public {
@@ -812,8 +785,8 @@ contract ContractTest is Test {
         vm.startPrank(bob);
         cfp.claim(14, 0);
         vm.stopPrank();
-        assertEq(aliceBalance + 2 * 10 ** 18, aliceBalance + upper14);
-        assertEq(bobBalance + 1 * 10 ** 18, bobBalance + lower14);
+        assertEq(aliceBalance + 2 * 10 ** 6, aliceBalance + upper14);
+        assertEq(bobBalance + 1 * 10 ** 6, bobBalance + lower14);
     }
 
     function testForfeitShouldAllowAllPartiesToGetTheirFundsBack() public {
@@ -830,21 +803,21 @@ contract ContractTest is Test {
         vm.startPrank(bob);
         cfp.claim(15, 0);
         vm.stopPrank();
-        assertEq(aliceBalance + 2 * 10 ** 18, aliceBalance + upper15);
-        assertEq(bobBalance + 1 * 10 ** 18, bobBalance + lower15);
+        assertEq(aliceBalance + 2 * 10 ** 6, aliceBalance + upper15);
+        assertEq(bobBalance + 1 * 10 ** 6, bobBalance + lower15);
     }
 
     function testContributionsShouldIncrementDAO() public {
         // DAO address should start with 4 from carol contributions
         uint256 DAOBalance1 = erc20.balanceOf(DAOAddress);
-        assertEq(DAOBalance1, 4 * 10 ** 18);
+        assertEq(DAOBalance1, 4 * 10 ** 6);
 
         vm.startPrank(alice);
-        cfp.claim(14, 1 * 10 ** 18);
+        cfp.claim(14, 1 * 10 ** 6);
         vm.stopPrank();
 
         uint256 DAOBalance2 = erc20.balanceOf(DAOAddress);
-        assertEq(DAOBalance2, 5 * 10 ** 18);
+        assertEq(DAOBalance2, 5 * 10 ** 6);
     }
 
     function testShouldRevertWhenAttemptingToVoidWithoutVoidTimePassing()

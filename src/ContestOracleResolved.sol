@@ -364,12 +364,18 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
             uint32[2] memory contestScore = uintToResultScore(bytesToUint32(response));
             contestToUpdate.awayScore = contestScore[0];
             contestToUpdate.homeScore = contestScore[1];
-            contestToUpdate.contestStatus = ContestStatus.Scored;
-            emit ContestScored(
-                requestMapping[requestId],
-                contestToUpdate.awayScore,
-                contestToUpdate.homeScore
-            );
+
+            // if the score return from oracle network results in a 0-0 contest final, this must be confirmed
+            if (contestToUpdate.awayScore + contestToUpdate.homeScore == 0) {
+                contestToUpdate.contestStatus = ContestStatus.RequiresConfirmation;
+            } else {
+                contestToUpdate.contestStatus = ContestStatus.Scored;
+                emit ContestScored(
+                    requestMapping[requestId],
+                    contestToUpdate.awayScore,
+                    contestToUpdate.homeScore
+                );
+            }
         }
     }
 
