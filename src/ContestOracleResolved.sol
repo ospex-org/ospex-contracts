@@ -31,6 +31,9 @@ error LinkAmountTooLowFromSender(uint256 requiredAmount);
 // Triggered when the amount of Link tokens provided is insufficient for the operation.
 error LinkAmountTooLow(uint256 requiredAmount);
 
+// Triggered when the hash does not match the hash in the constructor (or current) used for contest creation and scoring.
+error IncorrectHash();
+
 contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl, ReentrancyGuard {
     using Functions for Functions.Request;
 
@@ -148,14 +151,18 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
     // Ensures that the hash of the provided 'source' string is equal to the stored 'createContestSourceHash'
     // If not, the function call is reverted with an "Incorrect hash" error message
     modifier correctCreateContestHash(string memory source) {
-        require((keccak256(abi.encodePacked(source))) == createContestSourceHash, "Incorrect hash");
+        if (keccak256(abi.encodePacked(source)) != createContestSourceHash) {
+            revert IncorrectHash();
+        }
         _;
     }
 
     // Ensures that the hash of the provided 'source' string is equal to the stored 'scoreContestSourceHash'
     // If not, the function call is reverted with an "Incorrect hash" error message
     modifier correctScoreContestHash(string memory source) {
-        require((keccak256(abi.encodePacked(source))) == scoreContestSourceHash, "Incorrect hash");
+        if (keccak256(abi.encodePacked(source)) != scoreContestSourceHash) {
+            revert IncorrectHash();
+        }
         _;
     }
 

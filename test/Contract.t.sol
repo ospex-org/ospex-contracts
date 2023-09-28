@@ -833,4 +833,60 @@ contract ContractTest is Test {
             cfp.voidSpeculation(i + 1);
         }
     }
+
+    function testNonMatchingSourceCodeShouldFail() public {
+
+        vm.expectRevert(abi.encodeWithSignature("IncorrectHash()"));
+        contestOracleResolved.createContest(
+            "53b3147442e62830726e95a89b9b3f28",
+            "286108",
+            "abc",
+            "test2",
+            "0x0",
+            1234,
+            299995
+        );
+
+        currentContestCounter = contestOracleResolved.contestId();
+
+        // should pass
+        vm.recordLogs();
+
+        contestOracleResolved.createContest(
+            "53b3147442e62830726e95a89b9b3f28",
+            "286108",
+            "abc",
+            "test1",
+            "0x0",
+            1234,
+            299995
+        );
+
+        Vm.Log[] memory contestCreationEntriesForSourceTest = vm.getRecordedLogs();
+
+        vm.startPrank(address(mockOracle));
+        
+        contestOracleResolved.exposed_fulfillRequest(
+            bytes32(contestCreationEntriesForSourceTest[0].topics[1]),
+            dummyVal
+        );
+
+        vm.stopPrank();
+
+        // move forward in time so that contests can be scored
+        vm.warp(block.timestamp + 3600);
+
+        vm.expectRevert(abi.encodeWithSignature("IncorrectHash()"));
+        contestOracleResolved.scoreContest(currentContestCounter + 1, "test1", "0x0", 1234, 299995);
+
+        // should pass
+        contestOracleResolved.scoreContest(currentContestCounter + 1, "test2", "0x0", 1234, 299995);
+
+    }
+
+    // function anyUserShouldBeAbleToCreateAContestProvidedTheyHaveLINK()
+    //     public
+    // {
+        
+    // }
 }
