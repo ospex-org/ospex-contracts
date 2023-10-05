@@ -44,7 +44,7 @@ contract ContractTest is Test {
     function setUp() public {
         link = new ERC677(
             address(this),
-            type(uint256).max,
+            100 * 10 ** 18,
             "LinkToken",
             "LINK"
         );
@@ -96,7 +96,9 @@ contract ContractTest is Test {
 
         currentContestCounter = contestOracleResolved.contestId();
 
-        vm.recordLogs();
+        // transfer LINK token to contract harness so contests can be created and scored
+        link.approve(address(0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496), 0.25 * 10 * 10 ** 18);
+        link.transferFrom(address(0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496), address(0x5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9), 0.25 * 10 * 10 ** 18);
 
         // create initial contest to be used with some tests (NotMatching, ScoredManually, Push)
         // for NotMatching test, currentContestCounter + 1
@@ -155,34 +157,31 @@ contract ContractTest is Test {
             299996
         );
 
-        // stores emits created during contest creation, ids needed to mock response
-        Vm.Log[] memory contestCreationEntries = vm.getRecordedLogs();
-
         // this emulates the decentralized oracle network returning matching data based on the requests created when the new contest was created
         vm.startPrank(address(mockOracle));
-        
+
         contestOracleResolved.exposed_fulfillRequest(
-            bytes32(contestCreationEntries[0].topics[1]),
+            bytes32(uint256(300000)),
             dummyVal
         );
 
         contestOracleResolved.exposed_fulfillRequest(
-            bytes32(contestCreationEntries[1].topics[1]),
+            bytes32(uint256(299999)),
             dummyVal
         );
 
         contestOracleResolved.exposed_fulfillRequest(
-            bytes32(contestCreationEntries[2].topics[1]),
+            bytes32(uint256(299998)),
             dummyVal
         );
 
         contestOracleResolved.exposed_fulfillRequest(
-            bytes32(contestCreationEntries[3].topics[1]),
+            bytes32(uint256(299997)),
             dummyVal
         );
 
         contestOracleResolved.exposed_fulfillRequest(
-            bytes32(contestCreationEntries[4].topics[1]),
+            bytes32(uint256(299996)),
             dummyVal
         );
 
@@ -196,38 +195,35 @@ contract ContractTest is Test {
         contestOracleResolved.scoreContest(currentContestCounter + 3, "test2", "0x0", 1234, 299998);
         contestOracleResolved.scoreContest(currentContestCounter + 4, "test2", "0x0", 1234, 299997);
         contestOracleResolved.scoreContest(currentContestCounter + 5, "test2", "0x0", 1234, 299996);
-
-        // stores emits created during contest scoring, ids needed to mock response
-        Vm.Log[] memory contestScoredEntries = vm.getRecordedLogs();
-
+        
         vm.startPrank(address(mockOracle));
 
         contestOracleResolved.exposed_fulfillRequest(
-            bytes32(contestScoredEntries[0].topics[1]),
+            bytes32(uint256(300000)),
             // 16017
             abi.encodePacked(bytes32(0x0000000000000000000000000000000000000000000000000000000000003e91))
         );
 
         contestOracleResolved.exposed_fulfillRequest(
-            bytes32(contestScoredEntries[2].topics[1]),
+            bytes32(uint256(299999)),
             // 0
             abi.encodePacked(bytes32(0x0000000000000000000000000000000000000000000000000000000000000000))
         );
 
         contestOracleResolved.exposed_fulfillRequest(
-            bytes32(contestScoredEntries[4].topics[1]),
+            bytes32(uint256(299998)),
             // 16016
             abi.encodePacked(bytes32(0x0000000000000000000000000000000000000000000000000000000000003e90))
         );
 
         contestOracleResolved.exposed_fulfillRequest(
-            bytes32(contestScoredEntries[6].topics[1]),
+            bytes32(uint256(299997)),
             // 24016
             abi.encodePacked(bytes32(0x0000000000000000000000000000000000000000000000000000000000005dd0))
         );
 
         contestOracleResolved.exposed_fulfillRequest(
-            bytes32(contestScoredEntries[8].topics[1]),
+            bytes32(uint256(299996)),
             // 16024
             abi.encodePacked(bytes32(0x0000000000000000000000000000000000000000000000000000000000003e98))
         );
@@ -438,6 +434,7 @@ contract ContractTest is Test {
         
         cfp.scoreSpeculation(14);
         vm.warp(block.timestamp);
+
     }
 
     function testSpeculationShouldCorrectlyReflectBalances() public {
@@ -836,6 +833,10 @@ contract ContractTest is Test {
 
     function testNonMatchingSourceCodeShouldFail() public {
 
+        // transfer LINK token to contract harness so contests this one contest can be created and scored
+        link.approve(address(0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496), 0.25 * 2 * 10 ** 18);
+        link.transferFrom(address(0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496), address(0x5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9), 0.25 * 2 * 10 ** 18);
+
         vm.expectRevert(abi.encodeWithSignature("IncorrectHash()"));
         contestOracleResolved.createContest(
             "53b3147442e62830726e95a89b9b3f28",
@@ -850,7 +851,6 @@ contract ContractTest is Test {
         currentContestCounter = contestOracleResolved.contestId();
 
         // should pass
-        vm.recordLogs();
 
         contestOracleResolved.createContest(
             "53b3147442e62830726e95a89b9b3f28",
@@ -862,12 +862,10 @@ contract ContractTest is Test {
             299995
         );
 
-        Vm.Log[] memory contestCreationEntriesForSourceTest = vm.getRecordedLogs();
-
         vm.startPrank(address(mockOracle));
         
         contestOracleResolved.exposed_fulfillRequest(
-            bytes32(contestCreationEntriesForSourceTest[0].topics[1]),
+            bytes32(uint256(299995)),
             dummyVal
         );
 
@@ -884,9 +882,45 @@ contract ContractTest is Test {
 
     }
 
-    // function anyUserShouldBeAbleToCreateAContestProvidedTheyHaveLINK()
-    //     public
-    // {
-        
-    // }
+    function testAnyUserShouldBeAbleToCreateAContestProvidedTheyHaveLink()
+        public
+    {
+
+        // Transfer LINK tokens from the contract to the user's address
+        link.transfer(vince, 0.25 * 1 * 10 ** 18);
+
+        vm.startPrank(vince);
+
+        // should error
+        vm.expectRevert();
+        contestOracleResolved.createContest(
+            "53b3147442e62830726e95a89b9b3f28",
+            "286108",
+            "abc",
+            "test1",
+            "0x0",
+            1234,
+            299994
+        );
+
+        // User (vince) approves the contract to spend LINK on their behalf
+        link.approve(address(contestOracleResolved), 0.25 * 1 * 10 ** 18);
+
+        // User (vince) transfers LINK to the contract
+        link.transfer(address(contestOracleResolved), 0.25 * 1 * 10 ** 18);
+    
+        // should pass
+        contestOracleResolved.createContest(
+            "53b3147442e62830726e95a89b9b3f28",
+            "286108",
+            "abc",
+            "test1",
+            "0x0",
+            1234,
+            299994
+        );
+
+        vm.stopPrank();
+
+    }
 }

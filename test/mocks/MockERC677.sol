@@ -27,10 +27,10 @@ contract ERC677 is IERC677, ERC20 {
         uint256 value,
         bytes memory data
     ) external override returns (bool) {
-        // bool result = super.transfer(to, value);
-        // if (!result) return false;
+        bool result = super.transfer(to, value);
+        if (!result) return false;
 
-        // emit Transfer(msg.sender, to, value, data);
+        emit Transfer(msg.sender, to, value, data);
 
         // IERC677TransferReceiver receiver = IERC677TransferReceiver(to);
         // slither-disable-next-line unused-return

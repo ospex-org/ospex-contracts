@@ -3,6 +3,8 @@ pragma solidity ^0.8.18;
 
 contract MockOracle {
 
+    // mapping(address => uint96) /* oracle node */ /* LINK balance */ private s_withdrawableTokens;
+
     function sendRequest (
         uint64 subscriptionId,
         bytes calldata data,
@@ -12,6 +14,6 @@ contract MockOracle {
     }
 
     function getRegistry() external view returns (address) {
-        return (address(0x1234));
+        return (address(0x5));
     }
 }
