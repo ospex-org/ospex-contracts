@@ -28,7 +28,7 @@ contract ContractTest is Test {
     address bob = address(0x2);
     address carol = address(0x3);
     address vince = address(0xA8eb19F9B7c2b2611C1279423A0CB2aee3735320);
-    // todo: add an address for the billing proxy, which is required in the constructor of the ContestOracleResolved contract
+    address billingProxy = address(0x4);
     address DAOAddress = address(0xB8720b00C8FA95aD1bA62AEd4eEcD5567cf1dFD7);
     uint256 public currentContestCounter = 0;
     // this dummyVal is the equivalent of the value 40070091672358400
@@ -39,7 +39,10 @@ contract ContractTest is Test {
         0x539b77d7cf412eeb485a45b4b9510d2a2a989f145a34f462acd2b99cc0728158;
     bytes32 public SCORE_MANAGER =
         0x1e16087bdfce8818de5eeb4bfb2468db6c3e3a609902de86451d6bcb221ca1fd;
-    // todo: add SOURCEMANAGER_ROLE and LINKMANAGER_ROLE and test
+    bytes32 public SOURCEMANAGER_ROLE = 
+        0xa6014ca5c8e8b2d25a296a78ce7b6f1a09ff202791c9e89eb11dd451ba2e1392;
+    bytes32 public LINKMANAGER_ROLE = 
+        0x738992bc25abb2ee6bb23ab788633935296e7de9db9d2a862a0c360c71591e8c;
 
     function setUp() public {
         link = new ERC677(
@@ -61,7 +64,7 @@ contract ContractTest is Test {
         contestOracleResolved = new ContestOracleResolvedHarness(
             address(mockOracle),
             address(link),
-            address(0x5),
+            address(billingProxy),
             keccak256(abi.encodePacked("test1")),
             keccak256(abi.encodePacked("test2"))
         );
@@ -97,8 +100,8 @@ contract ContractTest is Test {
         currentContestCounter = contestOracleResolved.contestId();
 
         // transfer LINK token to contract harness so contests can be created and scored
-        link.approve(address(0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496), 0.25 * 10 * 10 ** 18);
-        link.transferFrom(address(0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496), address(0x5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9), 0.25 * 10 * 10 ** 18);
+        link.approve(address(this), 0.25 * 10 * 10 ** 18);
+        link.transferFrom(address(this), address(contestOracleResolved), 0.25 * 10 * 10 ** 18);
 
         // create initial contest to be used with some tests (NotMatching, ScoredManually, Push)
         // for NotMatching test, currentContestCounter + 1
@@ -321,7 +324,7 @@ contract ContractTest is Test {
         );
 
         // speculation(12), based on non-matching score
-        // note: there are no longer "non-matching scores" as the DON responds with either a score or an error
+        // there are no longer "non-matching scores" as the DON responds with either a score or an error
         cfp.createSpeculation(
             currentContestCounter + 1,
             uint32(block.timestamp + 1 minutes),
@@ -390,7 +393,7 @@ contract ContractTest is Test {
         cfp.createPosition(9, 2 * 10 ** 6, 0, PositionType.Upper);
         cfp.createPosition(10, 2 * 10 ** 6, 0, PositionType.Upper);
         cfp.createPosition(11, 2 * 10 ** 6, 0, PositionType.Upper);
-        cfp.createPosition(12, 2 * 10 ** 6, 0, PositionType.Upper);
+        // cfp.createPosition(12, 2 * 10 ** 6, 0, PositionType.Upper);
         cfp.createPosition(13, 2 * 10 ** 6, 0, PositionType.Upper);
         cfp.createPosition(14, 2 * 10 ** 6, 0, PositionType.Upper);
         cfp.createPosition(15, 2 * 10 ** 6, 0, PositionType.Upper);
@@ -404,7 +407,7 @@ contract ContractTest is Test {
         cfp.createPosition(9, 1 * 10 ** 6, 0, PositionType.Lower);
         cfp.createPosition(10, 1 * 10 ** 6, 0, PositionType.Lower);
         cfp.createPosition(11, 1 * 10 ** 6, 0, PositionType.Lower);
-        cfp.createPosition(12, 1 * 10 ** 6, 0, PositionType.Lower);
+        // cfp.createPosition(12, 1 * 10 ** 6, 0, PositionType.Lower);
         cfp.createPosition(13, 1 * 10 ** 6, 0, PositionType.Lower);
         cfp.createPosition(14, 1 * 10 ** 6, 0, PositionType.Lower);
         cfp.createPosition(15, 1 * 10 ** 6, 0, PositionType.Lower);
@@ -416,7 +419,7 @@ contract ContractTest is Test {
         cfp.lockSpeculation(9);
         cfp.lockSpeculation(10);
         cfp.lockSpeculation(11);
-        cfp.lockSpeculation(12);
+        // cfp.lockSpeculation(12);
         cfp.lockSpeculation(13);
         cfp.lockSpeculation(14);
 
@@ -549,8 +552,8 @@ contract ContractTest is Test {
         // speculations[8] and positions[8] is a speculation graded as away team won (upper should claim all)
         // speculations[8] = Speculation(
         //     8,
-        //     2 * 10**18,
-        //     1 * 10**18,
+        //     2 * 10**6,
+        //     1 * 10**6,
         //     uint32(block.timestamp),
         //     address(0x0),
         //     0,
@@ -559,14 +562,14 @@ contract ContractTest is Test {
         //     WinSide.Away
         // );
 
-        // positions[8][address(0x1)] = Position(2 * 10**18, 0, false); // winner
-        // positions[8][address(0x2)] = Position(0, 1 * 10**18, false); // loser
+        // positions[8][address(0x1)] = Position(2 * 10**6, 0, false); // winner
+        // positions[8][address(0x2)] = Position(0, 1 * 10**6, false); // loser
 
         // speculations[9] and positions[9] is a speculation graded as home team won (lower should claim all)
         // speculations[9] = Speculation(
         //     9,
-        //     2 * 10**18,
-        //     1 * 10**18,
+        //     2 * 10**6,
+        //     1 * 10**6,
         //     uint32(block.timestamp),
         //     address(0x0),
         //     0,
@@ -575,14 +578,14 @@ contract ContractTest is Test {
         //     WinSide.Home
         // );
 
-        // positions[9][address(0x1)] = Position(2 * 10**18, 0, false); // loser
-        // positions[9][address(0x2)] = Position(0, 1 * 10**18, false); // winner
+        // positions[9][address(0x1)] = Position(2 * 10**6, 0, false); // loser
+        // positions[9][address(0x2)] = Position(0, 1 * 10**6, false); // winner
 
         // speculations[10] and positions[10] is a speculation graded as over won (upper should claim all)
         // speculations[10] = Speculation(
         //     10,
-        //     2 * 10**18,
-        //     1 * 10**18,
+        //     2 * 10**6,
+        //     1 * 10**6,
         //     uint32(block.timestamp),
         //     address(0x0),
         //     0,
@@ -591,14 +594,14 @@ contract ContractTest is Test {
         //     WinSide.Over
         // );
 
-        // positions[10][address(0x1)] = Position(2 * 10**18, 0, false); // winner
-        // positions[10][address(0x2)] = Position(0, 1 * 10**18, false); // loser
+        // positions[10][address(0x1)] = Position(2 * 10**6, 0, false); // winner
+        // positions[10][address(0x2)] = Position(0, 1 * 10**6, false); // loser
 
         // speculations[11] and positions[11] is a speculation graded as over won (lower should claim all)
         // speculations[11] = Speculation(
         //     11,
-        //     2 * 10**18,
-        //     1 * 10**18,
+        //     2 * 10**6,
+        //     1 * 10**6,
         //     uint32(block.timestamp),
         //     address(0x0),
         //     0,
@@ -607,8 +610,8 @@ contract ContractTest is Test {
         //     WinSide.Under
         // );
 
-        // positions[11][address(0x1)] = Position(2 * 10**18, 0, false); // lower
-        // positions[11][address(0x2)] = Position(0, 1 * 10**18, false); // winner
+        // positions[11][address(0x1)] = Position(2 * 10**6, 0, false); // lower
+        // positions[11][address(0x2)] = Position(0, 1 * 10**6, false); // winner
 
         uint256 aliceBalance = erc20.balanceOf(alice);
         uint256 bobBalance = erc20.balanceOf(bob);
@@ -649,92 +652,6 @@ contract ContractTest is Test {
             bobBalance + upper9 + lower9 + upper11 + lower11
         );
     }
-
-    // refactor
-    /*
-    function testNonMatchingContestShouldAllowForManualScoringFromScoreManagerRole()
-        public 
-    {
-        // if a contest has non-matching scores, contest status will be NotMatching
-        // in this case, score manager will be able to score; if the score is not updated by score manager,
-        // speculation should be able to be voided, so that all parties receive their funds
-
-        // move forward in time 6 minutes, has to be long enough to exceed timeout
-        // should revert with error as scores from oracle are non-matching
-        vm.warp(block.timestamp + 3600);
-        vm.expectRevert(
-            abi.encodeWithSignature("NonMatchingScoreFromOracles()")
-        );
-        cfp.scoreSpeculation(12);
-        vm.startPrank(vince); // vince should have the role so that this is possible
-        contestOracleResolved.scoreContestManually(
-            currentContestCounter + 1,
-            17,
-            16
-        );
-        vm.stopPrank();
-        cfp.scoreSpeculation(12);
-        (
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            SpeculationStatus speculationStatus12,
-            WinSide winSide12
-        ) = cfp.speculations(12);
-        assertEq(2, uint8(speculationStatus12));
-        assertEq(1, uint8(winSide12));
-    }
-    */
-
-    /*
-    function testNonMatchingContestShouldBeVoidedIfNotScored() public {
-        // move forward in time 6 minutes, has to be long enough to exceed timeout
-        // should revert with error as scores from oracle are non-matching
-        vm.warp(block.timestamp + 3600);
-        vm.expectRevert(
-            abi.encodeWithSignature("NonMatchingScoreFromOracles()")
-        );
-        cfp.scoreSpeculation(12);
-        (
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-            SpeculationStatus speculationStatus12,
-            WinSide winSide12
-        ) = cfp.speculations(12);
-        assertEq(1, uint8(speculationStatus12)); // speculation will remain locked at this point: scores are non-matching
-        assertEq(0, uint8(winSide12)); // speculation win side is TBD
-
-        // should not be voidable until after void time has passed; void time is, by default, 3 days
-        vm.expectRevert(
-            abi.encodeWithSignature("SpeculationMayNotBeVoided(uint256)", 12)
-        );
-        cfp.voidSpeculation(12);
-
-        // move forward 3 days, contest should be voided, everyone gets their money back
-        vm.warp(block.timestamp + 3600 + (60 * 60 * 24 * 3));
-        cfp.voidSpeculation(12);
-        uint256 aliceBalance = erc20.balanceOf(alice);
-        uint256 bobBalance = erc20.balanceOf(bob);
-        (, uint256 upper12, uint256 lower12, , , , , , ) = cfp.speculations(12);
-        vm.startPrank(alice);
-        cfp.claim(12, 0);
-        vm.stopPrank();
-        vm.startPrank(bob);
-        cfp.claim(12, 0);
-        vm.stopPrank();
-        assertEq(aliceBalance + 2 * 10 ** 6, aliceBalance + upper12);
-        assertEq(bobBalance + 1 * 10 ** 6, bobBalance + lower12);
-    }
-    */
 
     function testZeroZeroContestShouldBehaveAccordingly() public {
         // zero-zero score must be checked/confirmed by score manager
@@ -834,8 +751,8 @@ contract ContractTest is Test {
     function testNonMatchingSourceCodeShouldFail() public {
 
         // transfer LINK token to contract harness so contests this one contest can be created and scored
-        link.approve(address(0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496), 0.25 * 2 * 10 ** 18);
-        link.transferFrom(address(0x7FA9385bE102ac3EAc297483Dd6233D62b3e1496), address(0x5991A2dF15A8F6A256D3Ec51E99254Cd3fb576A9), 0.25 * 2 * 10 ** 18);
+        link.approve(address(this), 0.25 * 2 * 10 ** 18);
+        link.transferFrom(address(this), address(contestOracleResolved), 0.25 * 2 * 10 ** 18);
 
         vm.expectRevert(abi.encodeWithSignature("IncorrectHash()"));
         contestOracleResolved.createContest(
@@ -851,7 +768,6 @@ contract ContractTest is Test {
         currentContestCounter = contestOracleResolved.contestId();
 
         // should pass
-
         contestOracleResolved.createContest(
             "53b3147442e62830726e95a89b9b3f28",
             "286108",
@@ -882,12 +798,12 @@ contract ContractTest is Test {
 
     }
 
-    function testAnyUserShouldBeAbleToCreateAContestProvidedTheyHaveLink()
+    function testAnyUserShouldBeAbleToCreateOrScoreAContestProvidedTheyHaveLink()
         public
     {
 
         // Transfer LINK tokens from the contract to the user's address
-        link.transfer(vince, 0.25 * 1 * 10 ** 18);
+        link.transfer(vince, 0.25 * 2 * 10 ** 18);
 
         vm.startPrank(vince);
 
@@ -919,6 +835,31 @@ contract ContractTest is Test {
             1234,
             299994
         );
+
+        vm.stopPrank();
+
+        vm.startPrank(address(mockOracle));
+
+        contestOracleResolved.exposed_fulfillRequest(
+            bytes32(uint256(299994)),
+            dummyVal
+        );
+
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 3600);
+
+        vm.startPrank(vince);
+
+        // should error
+        vm.expectRevert();
+        contestOracleResolved.scoreContest(currentContestCounter + 6, "test2", "0x0", 1234, 299994);
+
+        link.approve(address(contestOracleResolved), 0.25 * 1 * 10 ** 18);
+        link.transfer(address(contestOracleResolved), 0.25 * 1 * 10 ** 18);
+
+        // should pass
+        contestOracleResolved.scoreContest(currentContestCounter + 6, "test2", "0x0", 1234, 299994);
 
         vm.stopPrank();
 
