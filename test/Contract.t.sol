@@ -41,8 +41,6 @@ contract ContractTest is Test {
         0x1e16087bdfce8818de5eeb4bfb2468db6c3e3a609902de86451d6bcb221ca1fd;
     bytes32 public SOURCEMANAGER_ROLE = 
         0xa6014ca5c8e8b2d25a296a78ce7b6f1a09ff202791c9e89eb11dd451ba2e1392;
-    bytes32 public LINKMANAGER_ROLE = 
-        0x738992bc25abb2ee6bb23ab788633935296e7de9db9d2a862a0c360c71591e8c;
 
     function setUp() public {
         link = new ERC677(

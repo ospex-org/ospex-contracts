@@ -69,8 +69,8 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
     // Role identifier for a user who has permissions to change the js source that is executed by the DON.
     bytes32 public constant SOURCEMANAGER_ROLE = keccak256("SOURCEMANAGER_ROLE");
 
-    // Role identifier for a user who has permissions to change subscription fee requirement and withdraw LINK.
-    bytes32 public constant LINKMANAGER_ROLE = keccak256("LINKMANAGER_ROLE");
+    // Role identifier for a user who has permissions to change subscription fee requirement, withdraw LINK, and update DON address.
+    bytes32 public constant SUBSCRIPTIONMANAGER_ROLE = keccak256("SUBSCRIPTIONMANAGER_ROLE");
 
     // Counter for the contest ids. Each new contest increments this counter.
     uint256 public contestId = 0;
@@ -409,6 +409,15 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
     }
 
     /**
+    * @notice Allows the oracle address to be updated
+    *
+    * @param oracle New oracle address
+    */
+    function updateOracleAddress(address oracle) external onlyRole(SUBSCRIPTIONMANAGER_ROLE) {
+        setOracle(oracle);
+    }
+
+    /**
     * @notice updateLinkDenominator function utilized to update the LINK denominator amount
     * default is 4, so 0.25 LINK required to call functions requiring a DON subscription
     * changing this value to 2 would change LINK required to 0.5, a value of 8 changes LINK required to 0.125, etc.
@@ -417,7 +426,7 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
     */
     function updateLinkDenominator(
         uint256 newLinkDenominator
-    ) external onlyRole(LINKMANAGER_ROLE) {
+    ) external onlyRole(SUBSCRIPTIONMANAGER_ROLE) {
         linkDenominator = newLinkDenominator;
     }
 
@@ -428,7 +437,7 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
     */
     function withdrawAllLink(
         address to
-    ) external onlyRole(LINKMANAGER_ROLE) {
+    ) external onlyRole(SUBSCRIPTIONMANAGER_ROLE) {
         IERC20 linkToken = IERC20(linkAddress);
         uint256 contractBalance = linkToken.balanceOf(address(this));
         require(contractBalance > 0, "No tokens to withdraw");
