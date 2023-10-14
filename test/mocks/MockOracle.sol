@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.19;
 
 contract MockOracle {
 
@@ -8,12 +8,14 @@ contract MockOracle {
     function sendRequest (
         uint64 subscriptionId,
         bytes calldata data,
-        uint32 gasLimit
-    )  external returns (bytes32) {
-        return bytes32(uint256(gasLimit));
+        uint16 dataVersion,
+        uint32 callbackGasLimit,
+        bytes32 donId
+    )  external /* override */ returns (bytes32) {
+        return bytes32(uint256(callbackGasLimit));
     }
 
-    function getRegistry() external view returns (address) {
-        return (address(0x5));
-    }
+    // function getRegistry() external view returns (address) {
+    //     return (address(0x5));
+    // }
 }

@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.19;
 
-import {Functions, FunctionsClient} from "@chainlink/src/v0.8/functions/dev/v0_0_0/FunctionsClient.sol";
-// import {Functions, FunctionsClient} from "../lib/chainlink/contracts/src/v0.8/dev/functions/FunctionsClient.sol";
+import {FunctionsClient} from "@chainlink/src/v0.8/functions/dev/v1_0_0/FunctionsClient.sol";
 import {ConfirmedOwner} from "@chainlink/src/v0.8/shared/access/ConfirmedOwner.sol";
-// import {ConfirmedOwner} from "../lib/chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
+import {FunctionsRequest} from "@chainlink/src/v0.8/functions/dev/v1_0_0/libraries/FunctionsRequest.sol";
 import {LinkTokenInterface} from "@chainlink/src/v0.8/shared/interfaces/LinkTokenInterface.sol";
-// import {LinkTokenInterface} from "../lib/chainlink/contracts/src/v0.8/interfaces/LinkTokenInterface.sol";
 import {IERC1363} from "../lib/openzeppelin-contracts/contracts/interfaces/IERC1363.sol";
 import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "../lib/openzeppelin-contracts/contracts/access/AccessControl.sol";
-import "../lib/openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
+import "../lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 import "./CFPStructs.sol";
 
 // Triggered when an operation is attempted before the contest's timer has expired.
@@ -36,14 +34,20 @@ error LinkAmountTooLow(uint256 requiredAmount);
 // Triggered when the hash does not match the hash in the constructor (or current) used for contest creation and scoring.
 error IncorrectHash();
 
+// Triggered if request ID does not match the expected value
+error UnexpectedRequestID(bytes32 requestId);
+
 contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl, ReentrancyGuard {
-    using Functions for Functions.Request;
+    using FunctionsRequest for FunctionsRequest.Request;
 
     // Address of the Link token contract, required for handling LINK transactions.
     address internal immutable linkAddress;
 
-    // Address of the Link Billing Proxy contract, required for handling billing related transactions.
-    address internal immutable linkBillingProxyAddress;
+    // Address of router
+    address public router;
+
+    // DON ID for the Functions DON to which the requests are sent
+    bytes32 public donId;
 
     // Hash of the source code used to create a contest. This is used to verify the correct source code is being used.
     bytes32 public createContestSourceHash;
@@ -57,11 +61,10 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
     // The amount to divide LINK by, to pay the subscription fee to the DON
     uint256 public linkDenominator = 4;
 
-    // The latest response received from the DON.
-    bytes public latestResponse;
-
-    // The latest error received from the oracle.
-    bytes public latestError;
+    // The latest request id, latest received response, and latest received error (if any) are defined as state variables
+    bytes32 public s_lastRequestId;
+    bytes public s_lastResponse;
+    bytes public s_lastError;
 
     // Role identifier for a user who has permissions to manually score contests or modify the timer interval.
     bytes32 public constant SCOREMANAGER_ROLE = keccak256("SCOREMANAGER_ROLE");
@@ -93,7 +96,7 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
     mapping(bytes32 => uint256) public requestMapping;
 
     // Emitted when OCRResponse has been received. `requestId` is the id of the OCR request, `result` is the OCR result, and `err` contains any potential error messages.
-    event OCRResponse(bytes32 indexed requestId, bytes result, bytes err);
+    event Response(bytes32 indexed requestId, bytes response, bytes err);
 
     // Emitted when a new contest is created.
     // `contestId` is the unique id of the contest, 
@@ -120,28 +123,24 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
     /**
      * @notice Executes once when a contract is created to initialize state variables
      *
-     * @param oracle The FunctionsOracle contract
+     * @param _router The FunctionsOracle router address
      * @param linkTokenAddress Linktoken contract address
-     * @param linkBillingRegistryProxyAddress Link Billing Registry Proxy Contract
      * @param createContestSourceHashValue JavaScript source hash for contest creation, to prevent people running their own script
      * @param scoreContestSourceHashValue JavaScript source hash for contest scoring, to prevent people running their own script
      */
     constructor(
-        address oracle, 
+        address _router, 
+        bytes32 _donId,
         address linkTokenAddress, 
-        address linkBillingRegistryProxyAddress,
         bytes32 createContestSourceHashValue,
         bytes32 scoreContestSourceHashValue
-    ) FunctionsClient(oracle) ConfirmedOwner(msg.sender) {
+    ) FunctionsClient(_router) ConfirmedOwner(msg.sender) {
+        router = _router;
+        donId = _donId;
         require(
             linkTokenAddress != address(0),
             "Link token address is not set"
         );
-        require(
-            linkBillingRegistryProxyAddress != address(0),
-            "Link billing proxy address is not set"
-        );
-        linkBillingProxyAddress = linkBillingRegistryProxyAddress;
         linkAddress = linkTokenAddress;
         
         // Source hashes may only be altered by the source manager
@@ -193,7 +192,7 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
     modifier paySubscriptionFee(uint64 subscriptionId) {
         // Pay the subscription fee with LINK tokens. If the payment fails, revert the transaction with a meaningful error message.
         bool subscriptionPaid = IERC1363(linkAddress).transferAndCall(
-            linkBillingProxyAddress,
+            router,
             LINK_DIVISIBILITY / linkDenominator,
             abi.encode(subscriptionId)
         );
@@ -208,7 +207,7 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
     * @param sportspageId Contest id from Sportspage API
     * @param jsonoddsId Contest id from the JSON Odds API
     * @param source JavaScript source code
-    * @param secrets Encrypted secrets payload
+    * @param encryptedSecretsUrls The encrypted secrets url
     * @param subscriptionId Funtions billing subscription ID
     * @param gasLimit Maximum amount of gas used to call the client contract's `handleOracleFulfillment` function
     */
@@ -217,7 +216,7 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
         string memory sportspageId,
         string memory jsonoddsId,
         string calldata source,
-        bytes calldata secrets,
+        bytes calldata encryptedSecretsUrls,
         uint64 subscriptionId,
         uint32 gasLimit
     ) external correctCreateContestHash(source) 
@@ -233,8 +232,8 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
         args[1] = sportspageId;
         args[2] = jsonoddsId;
 
-        // Execute the oracle request
-        executeRequest(source, secrets, args, subscriptionId, gasLimit, contestId);
+        // Send the oracle request
+        sendRequest(source, encryptedSecretsUrls, args, subscriptionId, gasLimit, donId, contestId);
 
         // Initialize the new contest and store it in the contests mapping
         Contest storage contest = contests[contestId];
@@ -253,14 +252,14 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
     *
     * @param _contestId Contest id to identify the correct contest struct
     * @param source JavaScript source code
-    * @param secrets Encrypted secrets payload
+    * @param encryptedSecretsUrls The encrypted secrets url
     * @param subscriptionId Funtions billing subscription ID
     * @param gasLimit Maximum amount of gas used to call the client contract's `handleOracleFulfillment` function
     */
     function scoreContest(
         uint256 _contestId,
         string calldata source,
-        bytes calldata secrets,
+        bytes calldata encryptedSecretsUrls,
         uint64 subscriptionId,
         uint32 gasLimit
     ) external timerExpired(_contestId) 
@@ -279,8 +278,8 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
             args[1] = contests[_contestId].sportspageId;
             args[2] = contests[_contestId].jsonoddsId;
 
-            // Execute the oracle request
-            executeRequest(source, secrets, args, subscriptionId, gasLimit, _contestId);
+            // Send the oracle request
+            sendRequest(source, encryptedSecretsUrls, args, subscriptionId, gasLimit, donId, _contestId);
         }
     }
 
@@ -310,33 +309,39 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
     }
 
     /**
-    * @notice Executes a request by invoking the Functions oracle.
+    * @notice Sends a request
     *
     * @param source The source code for the request.
-    * @param secrets The encrypted secrets payload.
+    * @param encryptedSecretsUrls The encrypted secrets url.
     * @param args The arguments accessible from within the source code.
     * @param subscriptionId Functions billing subscription ID.
     * @param gasLimit Maximum amount of gas used to call the client contract's `handleOracleFulfillment` function.
+    * @param jobId ID of the job to be invoked
     * @param _contestId The contest id utilized in the callback to update the appropriate contest struct.
-    * @return The Functions request ID.
     */
-    function executeRequest(
+    function sendRequest(
         string memory source,
-        bytes memory secrets,
+        bytes memory encryptedSecretsUrls,
         string[] memory args,
         uint64 subscriptionId,
         uint32 gasLimit,
+        bytes32 jobId,
         uint256 _contestId
-    ) internal returns (bytes32) {
-        Functions.Request memory req;
-        req.initializeRequest(Functions.Location.Inline, Functions.CodeLanguage.JavaScript, source);
-        if (secrets.length > 0) {
-        req.addRemoteSecrets(secrets);
+    ) internal returns (bytes32 requestId) {
+        FunctionsRequest.Request memory req;
+        req.initializeRequestForInlineJavaScript(source);
+        if (encryptedSecretsUrls.length > 0) {
+            req.addSecretsReference(encryptedSecretsUrls);
         }
-        if (args.length > 0) req.addArgs(args);
-        bytes32 assignedReqID = sendRequest(req, subscriptionId, gasLimit);
-        requestMapping[assignedReqID] = _contestId;
-        return assignedReqID;
+        if (args.length > 0) req.setArgs(args);
+        s_lastRequestId = _sendRequest(
+            req.encodeCBOR(),
+            subscriptionId,
+            gasLimit,
+            jobId
+        );
+        requestMapping[s_lastRequestId] = _contestId;
+        return s_lastRequestId;
     }
 
     /**
@@ -348,9 +353,12 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
     * Either response or error parameter will be set, but never both
     */
     function fulfillRequest(bytes32 requestId, bytes memory response, bytes memory err) internal override {
-        latestResponse = response;
-        latestError = err;
-        emit OCRResponse(requestId, response, err);
+        if (s_lastRequestId != requestId) {
+            revert UnexpectedRequestID(requestId);
+        }
+        s_lastResponse = response;
+        s_lastError = err;
+        emit Response(requestId, s_lastResponse, s_lastError);
 
         // requestId is used to identify the propert contest struct to update
         Contest storage contestToUpdate = contests[requestMapping[requestId]];
@@ -409,12 +417,20 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
     }
 
     /**
-    * @notice Allows the oracle address to be updated
-    *
-    * @param oracle New oracle address
+    * @notice Set the DON ID
+    * @param newDonId New DON ID
     */
-    function updateOracleAddress(address oracle) external onlyRole(SUBSCRIPTIONMANAGER_ROLE) {
-        setOracle(oracle);
+    function setDonId(bytes32 newDonId) external onlyRole(SUBSCRIPTIONMANAGER_ROLE) {
+        donId = newDonId;
+    }
+
+    /**
+    * @notice Allows the router address to be updated
+    *
+    * @param _router New router address
+    */
+    function updateRouterAddress(address _router) external onlyRole(SUBSCRIPTIONMANAGER_ROLE) {
+        router = _router;
     }
 
     /**

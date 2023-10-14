@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.19;
 
 import { ContestOracleResolved } from "src/ContestOracleResolved.sol";
 
@@ -12,16 +12,16 @@ contract ContestOracleResolvedHarness is ContestOracleResolved {
     // }
 
     constructor(
-        address oracle, 
+        address _router, 
+        bytes32 _donId,
         address linkTokenAddress, 
-        address linkBillingRegistryProxyAddress,
         bytes32 createContestSourceHashValue,
         bytes32 scoreContestSourceHashValue
     ) 
         ContestOracleResolved(
-            oracle, 
+            _router, 
+            _donId,
             linkTokenAddress, 
-            linkBillingRegistryProxyAddress,
             createContestSourceHashValue,
             scoreContestSourceHashValue
         ) 

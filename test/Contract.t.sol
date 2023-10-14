@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 import "./mocks/MockERC20.sol";
@@ -28,7 +28,6 @@ contract ContractTest is Test {
     address bob = address(0x2);
     address carol = address(0x3);
     address vince = address(0xA8eb19F9B7c2b2611C1279423A0CB2aee3735320);
-    address billingProxy = address(0x4);
     address DAOAddress = address(0xB8720b00C8FA95aD1bA62AEd4eEcD5567cf1dFD7);
     uint256 public currentContestCounter = 0;
     // this dummyVal is the equivalent of the value 40070091672358400
@@ -61,8 +60,8 @@ contract ContractTest is Test {
 
         contestOracleResolved = new ContestOracleResolvedHarness(
             address(mockOracle),
+            bytes32(0x66756e2d706f6c79676f6e2d6d756d6261692d31000000000000000000000000), // DON ID from: https://functions.chain.link/mumbai
             address(link),
-            address(billingProxy),
             keccak256(abi.encodePacked("test1")),
             keccak256(abi.encodePacked("test2"))
         );
@@ -113,6 +112,13 @@ contract ContractTest is Test {
             1234,
             300000
         );
+
+        vm.startPrank(address(mockOracle));
+        contestOracleResolved.exposed_fulfillRequest(
+            bytes32(uint256(300000)),
+            dummyVal
+        );
+        vm.stopPrank();
         
         // for ScoredManually tests, currentContestCounter + 2
         contestOracleResolved.createContest(
@@ -125,6 +131,13 @@ contract ContractTest is Test {
             299999
         );
 
+        vm.startPrank(address(mockOracle));
+        contestOracleResolved.exposed_fulfillRequest(
+            bytes32(uint256(299999)),
+            dummyVal
+        );
+        vm.stopPrank();
+
         // for Push tests, currentContestCounter + 3
         contestOracleResolved.createContest(
             "53b3147442e62830726e95a89b9b3f28",
@@ -135,6 +148,13 @@ contract ContractTest is Test {
             1234,
             299998
         );
+
+        vm.startPrank(address(mockOracle));
+        contestOracleResolved.exposed_fulfillRequest(
+            bytes32(uint256(299998)),
+            dummyVal
+        );
+        vm.stopPrank();
 
         // away side winning contest, currentContestCounter + 4
         contestOracleResolved.createContest(
@@ -147,6 +167,13 @@ contract ContractTest is Test {
             299997
         );
 
+        vm.startPrank(address(mockOracle));
+        contestOracleResolved.exposed_fulfillRequest(
+            bytes32(uint256(299997)),
+            dummyVal
+        );
+        vm.stopPrank();
+
         // home side winning contest, currentContestCounter + 5
         contestOracleResolved.createContest(
             "53b3147442e62830726e95a89b9b3f28",
@@ -158,77 +185,64 @@ contract ContractTest is Test {
             299996
         );
 
-        // this emulates the decentralized oracle network returning matching data based on the requests created when the new contest was created
         vm.startPrank(address(mockOracle));
-
-        contestOracleResolved.exposed_fulfillRequest(
-            bytes32(uint256(300000)),
-            dummyVal
-        );
-
-        contestOracleResolved.exposed_fulfillRequest(
-            bytes32(uint256(299999)),
-            dummyVal
-        );
-
-        contestOracleResolved.exposed_fulfillRequest(
-            bytes32(uint256(299998)),
-            dummyVal
-        );
-
-        contestOracleResolved.exposed_fulfillRequest(
-            bytes32(uint256(299997)),
-            dummyVal
-        );
-
         contestOracleResolved.exposed_fulfillRequest(
             bytes32(uint256(299996)),
             dummyVal
         );
-
         vm.stopPrank();
 
         // move forward in time so that contests can be scored
         vm.warp(block.timestamp + 3600);
 
         contestOracleResolved.scoreContest(currentContestCounter + 1, "test2", "0x0", 1234, 300000);
-        contestOracleResolved.scoreContest(currentContestCounter + 2, "test2", "0x0", 1234, 299999);
-        contestOracleResolved.scoreContest(currentContestCounter + 3, "test2", "0x0", 1234, 299998);
-        contestOracleResolved.scoreContest(currentContestCounter + 4, "test2", "0x0", 1234, 299997);
-        contestOracleResolved.scoreContest(currentContestCounter + 5, "test2", "0x0", 1234, 299996);
-        
-        vm.startPrank(address(mockOracle));
 
+        vm.startPrank(address(mockOracle));
         contestOracleResolved.exposed_fulfillRequest(
             bytes32(uint256(300000)),
             // 16017
             abi.encodePacked(bytes32(0x0000000000000000000000000000000000000000000000000000000000003e91))
         );
+        vm.stopPrank();
 
+        contestOracleResolved.scoreContest(currentContestCounter + 2, "test2", "0x0", 1234, 299999);
+
+        vm.startPrank(address(mockOracle));
         contestOracleResolved.exposed_fulfillRequest(
             bytes32(uint256(299999)),
             // 0
             abi.encodePacked(bytes32(0x0000000000000000000000000000000000000000000000000000000000000000))
         );
+        vm.stopPrank();
 
+        contestOracleResolved.scoreContest(currentContestCounter + 3, "test2", "0x0", 1234, 299998);
+
+        vm.startPrank(address(mockOracle));
         contestOracleResolved.exposed_fulfillRequest(
             bytes32(uint256(299998)),
             // 16016
             abi.encodePacked(bytes32(0x0000000000000000000000000000000000000000000000000000000000003e90))
         );
+        vm.stopPrank();
 
+        contestOracleResolved.scoreContest(currentContestCounter + 4, "test2", "0x0", 1234, 299997);
+
+        vm.startPrank(address(mockOracle));
         contestOracleResolved.exposed_fulfillRequest(
             bytes32(uint256(299997)),
             // 24016
             abi.encodePacked(bytes32(0x0000000000000000000000000000000000000000000000000000000000005dd0))
         );
+        vm.stopPrank();
 
+        contestOracleResolved.scoreContest(currentContestCounter + 5, "test2", "0x0", 1234, 299996);
+        
+        vm.startPrank(address(mockOracle));
         contestOracleResolved.exposed_fulfillRequest(
             bytes32(uint256(299996)),
             // 16024
             abi.encodePacked(bytes32(0x0000000000000000000000000000000000000000000000000000000000003e98))
         );
-
         vm.stopPrank();
 
         vm.warp(block.timestamp);
