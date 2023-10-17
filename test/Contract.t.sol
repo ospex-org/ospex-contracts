@@ -96,9 +96,8 @@ contract ContractTest is Test {
 
         currentContestCounter = contestOracleResolved.contestId();
 
-        // transfer LINK token to contract harness so contests can be created and scored
-        link.approve(address(this), 0.25 * 10 * 10 ** 18);
-        link.transferFrom(address(this), address(contestOracleResolved), 0.25 * 10 * 10 ** 18);
+        // Test contract approves the contestOracleResolved contract to spend LINK tokens on its behalf
+        link.approve(address(contestOracleResolved), 0.25 * 10 * 10 ** 18);
 
         // create initial contest to be used with some tests (NotMatching, ScoredManually, Push)
         // for NotMatching test, currentContestCounter + 1
@@ -763,8 +762,7 @@ contract ContractTest is Test {
     function testNonMatchingSourceCodeShouldFail() public {
 
         // transfer LINK token to contract harness so contests this one contest can be created and scored
-        link.approve(address(this), 0.25 * 2 * 10 ** 18);
-        link.transferFrom(address(this), address(contestOracleResolved), 0.25 * 2 * 10 ** 18);
+        link.approve(address(contestOracleResolved), 0.25 * 2 * 10 ** 18);
 
         vm.expectRevert(abi.encodeWithSignature("IncorrectHash()"));
         contestOracleResolved.createContest(
@@ -834,9 +832,6 @@ contract ContractTest is Test {
         // User (vince) approves the contract to spend LINK on their behalf
         link.approve(address(contestOracleResolved), 0.25 * 1 * 10 ** 18);
 
-        // User (vince) transfers LINK to the contract
-        link.transfer(address(contestOracleResolved), 0.25 * 1 * 10 ** 18);
-    
         // should pass
         contestOracleResolved.createContest(
             "53b3147442e62830726e95a89b9b3f28",
@@ -868,7 +863,6 @@ contract ContractTest is Test {
         contestOracleResolved.scoreContest(currentContestCounter + 6, "test2", "0x0", 1234, 299994);
 
         link.approve(address(contestOracleResolved), 0.25 * 1 * 10 ** 18);
-        link.transfer(address(contestOracleResolved), 0.25 * 1 * 10 ** 18);
 
         // should pass
         contestOracleResolved.scoreContest(currentContestCounter + 6, "test2", "0x0", 1234, 299994);
