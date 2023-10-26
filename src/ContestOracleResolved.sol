@@ -25,14 +25,11 @@ error ScoreContestNotInReadyStatus(uint256 contestId);
 // The 'contestId' parameter is the ID of the contest that cannot be manually scored.
 error ContestUnableToBeScoredManually(uint256 contestId);
 
-// Triggered when the LINK has not been approved for transfer.
-error LinkNotApproved(uint256 requiredAmount);
-
 // Triggered when the LINK has not been transferred.
-error LinkNotTransferred(uint256 requiredAmount);
+error LinkNotTransferredByCaller(uint256 requiredAmount);
 
 // Triggered when the amount of LINK tokens provided is insufficient for the operation.
-error LinkAmountTooLow(uint256 requiredAmount);
+error SubscriptionNotPaidByContract(uint256 requiredAmount);
 
 // Triggered when the hash does not match the hash in the constructor (or current) used for contest creation and scoring.
 error IncorrectHash();
@@ -190,18 +187,15 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
         _;
     }
 
+    // Ensures that LINK is paid by the address that is executing either createContest or scoreContest functions
     modifier handleLinkPayment(uint64 subscriptionId) {
-        // Check if the caller has approved the necessary LINK tokens to the contract
-        bool linkApproved = IERC20(linkAddress).allowance(msg.sender, address(this)) >= (LINK_DIVISIBILITY / linkDenominator);
-        if (!linkApproved) revert LinkNotApproved(LINK_DIVISIBILITY / linkDenominator);
-
         // Transfer the approved LINK tokens from the caller to the contract
         bool linkTransferred = IERC20(linkAddress).transferFrom(
-            msg.sender, 
-            address(this), 
+            msg.sender,
+            address(this),
             LINK_DIVISIBILITY / linkDenominator
         );
-        if (!linkTransferred) revert LinkNotTransferred(LINK_DIVISIBILITY / linkDenominator);
+        if (!linkTransferred) revert LinkNotTransferredByCaller(LINK_DIVISIBILITY / linkDenominator);
 
         // Pay the subscription fee to the DON
         bool subscriptionPaid = IERC1363(linkAddress).transferAndCall(
@@ -209,7 +203,7 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
             LINK_DIVISIBILITY / linkDenominator,
             abi.encode(subscriptionId)
         );
-        if (!subscriptionPaid) revert LinkAmountTooLow(LINK_DIVISIBILITY / linkDenominator);
+        if (!subscriptionPaid) revert SubscriptionNotPaidByContract(LINK_DIVISIBILITY / linkDenominator);
         _;
     }
 
@@ -234,8 +228,6 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
         uint32 gasLimit
     ) external correctCreateContestHash(source) 
         nonReentrant 
-        // callerPaysLink() 
-        // paySubscriptionFee(subscriptionId)
         handleLinkPayment(subscriptionId)
     {
         // Increment the contestId for the new contest
@@ -281,8 +273,6 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
         scoreContestReadyStatus(_contestId) 
         correctScoreContestHash(source) 
         nonReentrant
-        // callerPaysLink()
-        // paySubscriptionFee(subscriptionId)
         handleLinkPayment(subscriptionId)
     {
         // Update the contest timer, minimizes the posibility of calling score contest multiple times in too short of an interval
