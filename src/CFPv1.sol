@@ -517,6 +517,13 @@ contract CFPv1 is AccessControl, ReentrancyGuard {
         Speculation storage speculationToUpdate = speculations[_speculationId];
         speculationToUpdate.speculationStatus = SpeculationStatus.Closed;
         speculationToUpdate.winSide = WinSide.Void;
+        emit SpeculationScored(
+            _speculationId,
+            speculationToUpdate.contestId,
+            speculationToUpdate.upperAmount,
+            speculationToUpdate.lowerAmount,
+            speculationToUpdate.winSide
+        );
     }
 
     /**

@@ -92,11 +92,11 @@ contract SpeculationSpread is AccessControl {
     * @param _awayScore Away team score
     * @param _homeScore Home team score
     * @param _theNumber Point spread value. Represents the number of points by which the away team is expected to win or lose.
-    *                   Positive values indicate the away team is favored and must win by more than this value to cover the spread.
-    *                   Negative values indicate the home team is favored, and the away team must either win outright or lose by fewer than the absolute value to cover the spread.
+    *                   Positive values indicate the home team is favored and must win by more than this value to cover the spread.
+    *                   Negative values indicate the away team is favored and the home team must either win outright or lose by less than the absolute value of the spread to cover.
     *                   For example:
-    *                   - If _theNumber is 3, the away team must win by more than 3 points/goals/runs.
-    *                   - If _theNumber is -4, the away team must either win outright or lose by fewer than 4 points/goals/runs.
+    *                   - If _theNumber is 3, the home team must win by more than 3 points/goals/runs to cover.
+    *                   - If _theNumber is -4, the home team covers the spread by either winning outright or losing by less than 4 points/goals/runs.
     */
     function scoreSpread(
         uint32 _awayScore,
