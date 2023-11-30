@@ -813,7 +813,8 @@ contract ContractTest is Test {
     {
 
         // Transfer LINK tokens from the contract to the user's address
-        link.transfer(vince, 0.25 * 2 * 10 ** 18);
+        // link.transfer(vince, 0.25 * 2 * 10 ** 18);
+        link.transfer(vince, 0.004 * 2 * 10 ** 18); // mainnet LINK requirement
 
         vm.startPrank(vince);
 
@@ -830,7 +831,8 @@ contract ContractTest is Test {
         );
 
         // User (vince) approves the contract to spend LINK on their behalf
-        link.approve(address(contestOracleResolved), 0.25 * 1 * 10 ** 18);
+        // link.approve(address(contestOracleResolved), 0.25 * 1 * 10 ** 18);
+        link.approve(address(contestOracleResolved), 0.004 * 1 * 10 ** 18); // mainnet LINK requirement
 
         // should pass
         contestOracleResolved.createContest(
@@ -862,7 +864,8 @@ contract ContractTest is Test {
         vm.expectRevert();
         contestOracleResolved.scoreContest(currentContestCounter + 6, "test2", "0x0", 1234, 299994);
 
-        link.approve(address(contestOracleResolved), 0.25 * 1 * 10 ** 18);
+        // link.approve(address(contestOracleResolved), 0.25 * 1 * 10 ** 18);
+        link.approve(address(contestOracleResolved), 0.004 * 1 * 10 ** 18); // mainnet LINK requirement
 
         // should pass
         contestOracleResolved.scoreContest(currentContestCounter + 6, "test2", "0x0", 1234, 299994);
