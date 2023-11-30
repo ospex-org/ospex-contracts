@@ -68,7 +68,7 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
     uint256 internal constant LINK_DIVISIBILITY = 10 ** 18;
 
     // The amount to divide LINK by, to pay the subscription fee to the DON
-    uint256 public linkDenominator = 4;
+    uint256 public linkDenominator = 250;
 
     // The latest request id, latest received response, and latest received error (if any) are defined as state variables
     bytes32 public s_lastRequestId;
