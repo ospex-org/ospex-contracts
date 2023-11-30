@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+/**
+ * @title SpeculationSpread
+ * @author ospex.org
+ * @notice This contract is part of the ospex dApp, deployed on Polygon Mainnet.
+ * @notice alt url: ospex.crypto
+ * @dev The contract contains logic for scoring spread speculations for ospex.
+ * For more information, visit ospex.org or the project repository at github.com/ospex-org
+ */
+
 import "../lib/openzeppelin-contracts/contracts/access/AccessControl.sol";
 import "./CFPStructs.sol";
 

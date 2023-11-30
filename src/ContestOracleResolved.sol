@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+/**
+ * @title ContestOracleResolved
+ * @author ospex.org
+ * @notice This contract is part of the ospex dApp, deployed on Polygon Mainnet.
+ * @notice alt url: ospex.crypto
+ * @dev The contract contains contest information for ospex.
+ * For more information, visit ospex.org or the project repository at github.com/ospex-org
+ */
+
 import {FunctionsClient} from "@chainlink/src/v0.8/functions/dev/v1_0_0/FunctionsClient.sol";
 import {ConfirmedOwner} from "@chainlink/src/v0.8/shared/access/ConfirmedOwner.sol";
 import {FunctionsRequest} from "@chainlink/src/v0.8/functions/dev/v1_0_0/libraries/FunctionsRequest.sol";

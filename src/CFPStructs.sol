@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+/**
+ * @title CFPStructs
+ * @author ospex.org
+ * @notice This contract is part of the ospex dApp, deployed on Polygon Mainnet.
+ * @notice alt url: ospex.crypto
+ * @dev For more information, visit ospex.org or the project repository at github.com/ospex-org
+ * 
+ */
+
 struct Contest {
     uint32 awayScore; // final awayScore
     uint32 homeScore; // final homeScore

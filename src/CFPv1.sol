@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+/**
+ * @title CFPv1
+ * @author ospex.org
+ * @notice This contract is part of the ospex dApp, deployed on Polygon Mainnet.
+ * @notice alt url: ospex.crypto
+ * @dev The contract contains speculation and claim information for ospex.
+ * For more information, visit ospex.org or the project repository at github.com/ospex-org
+ */
+
 import "../lib/openzeppelin-contracts/contracts/access/AccessControl.sol";
 import "../lib/openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
