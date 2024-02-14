@@ -62,8 +62,7 @@ contract ContractTest is Test {
             address(mockOracle),
             bytes32(0x66756e2d706f6c79676f6e2d6d756d6261692d31000000000000000000000000), // DON ID from: https://functions.chain.link/mumbai
             address(link),
-            keccak256(abi.encodePacked("test1")),
-            keccak256(abi.encodePacked("test2"))
+            keccak256(abi.encodePacked("test1"))
         );
 
         speculationSpread = new SpeculationSpread(
@@ -107,6 +106,7 @@ contract ContractTest is Test {
             "286108",
             "abc",
             "test1",
+            keccak256(abi.encodePacked("test2")),
             "0x0",
             1234,
             300000
@@ -125,6 +125,7 @@ contract ContractTest is Test {
             "286108",
             "abc",
             "test1",
+            keccak256(abi.encodePacked("test2")),
             "0x0",
             1234,
             299999
@@ -143,6 +144,7 @@ contract ContractTest is Test {
             "286108",
             "abc",
             "test1",
+            keccak256(abi.encodePacked("test2")),
             "0x0",
             1234,
             299998
@@ -161,6 +163,7 @@ contract ContractTest is Test {
             "286108",
             "abc",
             "test1",
+            keccak256(abi.encodePacked("test2")),
             "0x0",
             1234,
             299997
@@ -179,6 +182,7 @@ contract ContractTest is Test {
             "286108",
             "abc",
             "test1",
+            keccak256(abi.encodePacked("test2")),
             "0x0",
             1234,
             299996
@@ -674,14 +678,14 @@ contract ContractTest is Test {
         cfp.scoreSpeculation(13);
 
         // confirm that status is actually RequiresConfirmation
-        (, , , ContestStatus contestStatus2a, , ,) = contestOracleResolved
+        (, , , , ContestStatus contestStatus2a, , ,) = contestOracleResolved
             .contests(2);
         assertEq(uint8(contestStatus2a), 5);
 
         // attempt to score with score manager
         vm.startPrank(vince);
         contestOracleResolved.scoreContestManually(2, 0, 0);
-        (, , , ContestStatus contestStatus2b, , ,) = contestOracleResolved
+        (, , , , ContestStatus contestStatus2b, , ,) = contestOracleResolved
             .contests(2);
         assertEq(uint8(contestStatus2b), 4);
         vm.stopPrank();
@@ -770,6 +774,7 @@ contract ContractTest is Test {
             "286108",
             "abc",
             "test2",
+            keccak256(abi.encodePacked("test2")),
             "0x0",
             1234,
             299995
@@ -783,6 +788,7 @@ contract ContractTest is Test {
             "286108",
             "abc",
             "test1",
+            keccak256(abi.encodePacked("test2")),
             "0x0",
             1234,
             299995
@@ -825,6 +831,7 @@ contract ContractTest is Test {
             "286108",
             "abc",
             "test1",
+            keccak256(abi.encodePacked("test2")),
             "0x0",
             1234,
             299994
@@ -840,6 +847,7 @@ contract ContractTest is Test {
             "286108",
             "abc",
             "test1",
+            keccak256(abi.encodePacked("test2")),
             "0x0",
             1234,
             299994

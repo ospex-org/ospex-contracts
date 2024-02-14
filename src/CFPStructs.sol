@@ -14,6 +14,7 @@ struct Contest {
     uint32 awayScore; // final awayScore
     uint32 homeScore; // final homeScore
     address contestCreator;
+    bytes32 scoreContestSourceHash;
     ContestStatus contestStatus; // is contest final (and is score available to speculations)
     string rundownId; // from rundown api
     string sportspageId; // from sportspage api

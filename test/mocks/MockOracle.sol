@@ -11,7 +11,7 @@ contract MockOracle {
         uint16 dataVersion,
         uint32 callbackGasLimit,
         bytes32 donId
-    )  external /* override */ returns (bytes32) {
+    )  external returns (bytes32) { // /* override */
         return bytes32(uint256(callbackGasLimit));
     }
 

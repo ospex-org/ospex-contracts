@@ -61,9 +61,6 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
     // Hash of the source code used to create a contest. This is used to verify the correct source code is being used.
     bytes32 public createContestSourceHash;
 
-    // Hash of the source code used to score a contest. This is used to verify the correct source code is being used.
-    bytes32 public scoreContestSourceHash;
-
     // The divisibility factor of the LINK token to handle decimal places in the token.
     uint256 internal constant LINK_DIVISIBILITY = 10 ** 18;
 
@@ -135,14 +132,12 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
      * @param _router The FunctionsOracle router address
      * @param linkTokenAddress Linktoken contract address
      * @param createContestSourceHashValue JavaScript source hash for contest creation, to prevent people running their own script
-     * @param scoreContestSourceHashValue JavaScript source hash for contest scoring, to prevent people running their own script
      */
     constructor(
         address _router, 
         bytes32 _donId,
         address linkTokenAddress, 
-        bytes32 createContestSourceHashValue,
-        bytes32 scoreContestSourceHashValue
+        bytes32 createContestSourceHashValue
     ) FunctionsClient(_router) ConfirmedOwner(msg.sender) {
         router = _router;
         donId = _donId;
@@ -154,7 +149,6 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
         
         // Source hashes may only be altered by the source manager
         createContestSourceHash = createContestSourceHashValue;
-        scoreContestSourceHash = scoreContestSourceHashValue;
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
@@ -169,8 +163,8 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
 
     // Ensures that the hash of the provided 'source' string is equal to the stored 'scoreContestSourceHash'
     // If not, the function call is reverted with an "Incorrect hash" error message
-    modifier correctScoreContestHash(string memory source) {
-        if (keccak256(abi.encodePacked(source)) != scoreContestSourceHash) {
+    modifier correctScoreContestHash(string memory source, uint256 _contestId) {
+        if (keccak256(abi.encodePacked(source)) != contests[_contestId].scoreContestSourceHash) {
             revert IncorrectHash();
         }
         _;
@@ -223,6 +217,7 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
     * @param sportspageId Contest id from Sportspage API
     * @param jsonoddsId Contest id from the JSON Odds API
     * @param source JavaScript source code
+    * @param _scoreContestSourceHash JavaScript source code to be utilized to score the contest
     * @param encryptedSecretsUrls The encrypted secrets url
     * @param subscriptionId Funtions billing subscription ID
     * @param gasLimit Maximum amount of gas used to call the client contract's `handleOracleFulfillment` function
@@ -232,6 +227,7 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
         string memory sportspageId,
         string memory jsonoddsId,
         string calldata source,
+        bytes32 _scoreContestSourceHash,
         bytes calldata encryptedSecretsUrls,
         uint64 subscriptionId,
         uint32 gasLimit
@@ -255,6 +251,7 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
         Contest storage contest = contests[contestId];
         contestTimers[contestId] = block.timestamp;
         contestCreationTime[contestId] = block.timestamp;
+        contest.scoreContestSourceHash = _scoreContestSourceHash;
         contest.rundownId = rundownId;
         contest.sportspageId = sportspageId;
         contest.jsonoddsId = jsonoddsId;
@@ -280,7 +277,7 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
         uint32 gasLimit
     ) external timerExpired(_contestId) 
         scoreContestReadyStatus(_contestId) 
-        correctScoreContestHash(source) 
+        correctScoreContestHash(source, _contestId) 
         nonReentrant
         handleLinkPayment(subscriptionId)
     {
@@ -477,21 +474,14 @@ contract ContestOracleResolved is FunctionsClient, ConfirmedOwner, AccessControl
     }
 
     /**
-    * @notice updateSourceHash function utilized to update source hashes for creating and scoring contests
+    * @notice updateSourceHash function utilized to update create contest hash for creating contests
     *
-    * @param sourceHashToUpdate The source hash that is being updated
-    * @param newSourceHash The new source hash to use (replaces the original hash)
+    * @param newCreateContestSourceHash The new source hash to use
     */
-    function updateSourceHash(
-        bytes32 sourceHashToUpdate,
-        bytes32 newSourceHash
+    function updateCreateContestSourceHash(
+        bytes32 newCreateContestSourceHash
     ) external onlyRole(SOURCEMANAGER_ROLE) {
-        if (sourceHashToUpdate == createContestSourceHash) {
-            createContestSourceHash = newSourceHash;
-        } else 
-        if (sourceHashToUpdate == scoreContestSourceHash) {
-            scoreContestSourceHash = newSourceHash;
-        }
+        createContestSourceHash = newCreateContestSourceHash;
     }
 
     /**

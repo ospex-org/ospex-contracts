@@ -15,15 +15,13 @@ contract ContestOracleResolvedHarness is ContestOracleResolved {
         address _router, 
         bytes32 _donId,
         address linkTokenAddress, 
-        bytes32 createContestSourceHashValue,
-        bytes32 scoreContestSourceHashValue
+        bytes32 createContestSourceHashValue
     ) 
         ContestOracleResolved(
             _router, 
             _donId,
             linkTokenAddress, 
-            createContestSourceHashValue,
-            scoreContestSourceHashValue
+            createContestSourceHashValue
         ) 
     {}
 
